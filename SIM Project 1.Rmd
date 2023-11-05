@@ -19,8 +19,8 @@ editor_options:
 if(!is.null(dev.list())) dev.off()
 rm(list = ls())
 
-df_test = load()
-df_train = load()
+test = read.csv("test.csv")
+train = read.csv("train.csv")
 ```
 
 
@@ -31,12 +31,33 @@ library(car)
 library(missMDA)
 ```
 
+**0. Preprocessing**
+
+```{r}
+# With the summary, we can see that there is 80 variables in total.
+summary(test)
+# And the name of each feature are below.
+str(test)
+# Analyzing all the feature will be an exhausting work. So there should be some way to reduce the dimensionality. According to the statement of this project, we should retain all the numerical variable and 10 categorical variable.
+
+# The categorical variable are below
+
+Categorical_val = c('MSSubClass',"MSZoning","Street","Alley","LotShape","LandContour","Utilities","LotConfig","LandSlope","Neighborhood","Condition1","Condition2","BldgType","HouseStyle","OverallQual","OverallCond","RoofStyle","RoofMatl","Exterior1st","Exterior2nd","MasVnrType","ExterQual","ExterCond","Foundation","BsmtQual","BsmtCond","BsmtExposure","BsmtFinType1","BsmtFinType2","Heating","HeatingQC","CentralAir","Electrical","KitchenQual","Functional","FireplaceQu","GarageType","GarageFinish","GarageQual","GarageCond","PavedDrive","PoolQC","Fence","MiscFeature","SaleType","SaleCondition")
+
+# The numerical variable are
+
+Numerical_val = c("LotFrontage","LotArea","MasVnrArea","BsmtFinSF1","BsmtFinSF2","BsmtUnfSF","TotalBsmtSF","1stFlrSF","2ndFlrSF","LowQualFinSF","GrLivArea","BsmtFullBath","BsmtHalfBath","FullBath","HalfBath","Bedroom","Kitchen","TotRmsAbvGrd","Fireplaces","GarageCars","GarageArea","WoodDeckSF","OpenPorchSF","EnclosedPorch","X3SsnPorch","ScreenPorch","PoolArea","MiscVal")
+
+# And the date variable are
+
+Date_val = c("YearBuilt","YearRemodAdd","GarageYrBlt","MoSold","YrSold")
+
+```
+
 
 **1. Exploratory Data Analysis and Model Fitting should take train sample only.**
 
 ```{r}
-
-
 
 ```
 
