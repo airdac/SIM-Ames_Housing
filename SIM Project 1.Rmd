@@ -15,13 +15,28 @@ editor_options:
 
 
 ```{r,echo=FALSE}
+# Load the data
 if(!is.null(dev.list())) dev.off()
 rm(list = ls())
+
+df_test = load()
+df_train = load()
 ```
+
+
+```{r}
+# Import the necesary library
+
+library(car)
+library(missMDA)
+```
+
 
 **1. Exploratory Data Analysis and Model Fitting should take train sample only.**
 
 ```{r}
+
+
 
 ```
 
