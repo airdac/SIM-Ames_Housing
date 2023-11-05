@@ -25,7 +25,7 @@ train = read.csv("train.csv")
 
 
 ```{r}
-# Import the necesary library
+# Import necessary libraries
 
 library(car)
 library(missMDA)
@@ -34,7 +34,7 @@ library(missMDA)
 **0. Preprocessing**
 
 ```{r}
-# With the summary, we can see that there is 80 variables in total.
+# With the summary, we can see that there are 80 variables in total.
 summary(test)
 # And the name of each feature are below.
 str(test)
@@ -55,7 +55,7 @@ Date_val = c("YearBuilt","YearRemodAdd","GarageYrBlt","MoSold","YrSold")
 ```
 
 
-**1. Exploratory Data Analysis and Model Fitting should take train sample only.**
+Comments: Exploratory Data Analysis and Model Fitting should take train sample only.
 
 ```{r}
 

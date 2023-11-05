@@ -1,0 +1,4 @@
+- What do you mean by serial correlation? Is it correlation between variables that describe the same phenomena with a time delay between them?
+- What does it mean to "If you can improve linear relations or limit the effect of influential data, you must consider suitable transformations for variables."?
+- How do we select the best models stepwise? Comparing them pairwise? Deleting/adding variables one by one and comparing the obtained model with the previous one?
+- What data is unusal/influential?
