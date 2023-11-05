@@ -1,6 +1,6 @@
 ---
 title: "SIM Project 1"
-author: "Adria Casanova", "Victor Garcia", "Zhengyong Ji"
+author: "Adrià Casanova", "Víctor Garcia", "Zhengyong Ji"
 date: "November, 19th 2023"
 output: 
   pdf_document: 
