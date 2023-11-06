@@ -2,3 +2,4 @@
 - What does it mean to "If you can improve linear relations or limit the effect of influential data, you must consider suitable transformations for variables."?
 - How do we select the best models stepwise? Comparing them pairwise? Deleting/adding variables one by one and comparing the obtained model with the previous one?
 - What data is unusal/influential?
+- You have uploaded two different example projects for the CarPrices dataset. Which one is best?

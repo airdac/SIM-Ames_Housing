@@ -1,0 +1,733 @@
+---
+title: "Car Prices"
+author: "Lídia Montero"
+date: "2022"
+output:
+  pdf_document:
+    number_sections: yes
+    toc: yes
+    toc_depth: 4
+  html_document:
+    toc: no
+    toc_depth: '4'
+  word_document:
+    toc: no
+    toc_depth: '4'
+geometry: left=1.9cm,right=1.9cm,top=1.25cm,bottom=1.52cm
+fontsize: 12pt
+subtitle: 'Example of Report'
+classoption: a4paper
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(car)
+require(ggplot2)
+require(GGally)
+```
+
+
+```{r}
+rm(list=ls())
+load("Sample_raw.Rdata")
+par(mfrow=c(1,1))
+```
+
+
+# Data preparation
+
+First, the data was imported and sampled. The result is saved as "Sample_raw.Rdata" and imported. 
+
+## Variable Analysis
+
+On each variable of this data, descriptive analysis is performed, a data quality report made and imputation and profiling accounted for.  
+
+### variable 1: model
+
+Model is a nominal variable without missing values. However, it has a lot of levels (89) with a few very sparsly populated ones, such that converting it to a factor is not feasable.
+
+```{r}
+summary(df$model)
+table(df$model)
+
+sum(is.na(df$model))
+df$model[1:5]
+```
+
+### variable 2: year
+
+This is a numeric interval variable. By using a histogram, it is clear that the data set contains mostly recent cars. It contains no missing values thus imputation is not needed. The year variable contains 80 outliers (out of which 25 severe), all on the lower end of the spectrum. This is due to most of the data being from recently build cars. We create two additional variables: a numeric age variable 'n.age' and an age factor "f.age" as discretisation.
+
+
+```{r}
+summary(df$year)
+sum(is.na(df$year))
+
+Boxplot(df$year)
+length(Boxplot(df$year, id = list(n=Inf)))
+sevout = (quantile(df$year,0.25)-(3*((quantile(df$year,0.75)-quantile(df$year,0.25)))))
+length(which(df$year < sevout))
+
+df$n.age = max(df$year)-(df$year)
+
+df$f.age <- ifelse(df$n.age <= 1, 1, ifelse(df$n.age > 1 & df$n.age <= 3, 2, ifelse(df$n.age > 3 & df$n.age <= 4, 3, ifelse(df$n.age > 4, 4,0))))
+df$f.age <- factor(df$f.age, labels=c("LowAge","LowMidAge","HighMidAge","HighAge"), order = T, levels=c(1,2,3,4))
+table(df$f.age)
+```
+
+### variable 3: price
+
+This is a continuous ratio variable. The data is not normally distributed, but this fact is further answered in question 1 in the next section of this document. Again a histogram is used to visualize the data. It contains no missing values thus imputation is not needed. The price variable contains 207 outliers (out of which 108 severe), all on the higher end of the spectrum. We create an additional ordinal price factor "f.price" to create a discretisation according to the quartiles.   
+
+```{r}
+summary(df$price)
+
+hist(df$price, breaks = 30, freq = F)
+curve(dnorm(x, mean(df$price), sd(df$price)), add = T)
+shapiro.test(df$price)
+
+sum(is.na(df$price))
+
+Boxplot(df$price)
+length(Boxplot(df$price, id = list(n=Inf)))
+sevout_price = (quantile(df$price,0.25)+(3*((quantile(df$price,0.75)-quantile(df$price,0.25)))))
+length(which(df$price > sevout_price))
+
+df$f.price <- ifelse(df$price <= 14000, 1, ifelse(df$price > 14000 & df$price <= 19799, 2, ifelse(df$price > 19799 & df$price <= 26000, 3, ifelse(df$price > 26000, 4,0))))
+df$f.price <- factor(df$f.price, labels=c("LowPrice","LowMidPrice","HighMidPrice","HighPrice"), order = T, levels=c(1,2,3,4))
+table(df$f.price)
+```
+
+### variable 4: transmission
+
+This is a Nominal variable (with three levels) and is thus converted to the factor type. It is visualized by a bar plot, in which it is clear that all levels are well represented. Therefore, no outliers are present. The variable contains no missing values thus imputation is not needed. 
+
+```{r}
+summary(df$transmission)
+
+df$transmission = factor(df$transmission)
+plot(df$transmission)
+
+sum(is.na(df$transmission))
+```
+
+### variable 5: mileage
+
+This is a continuous ratio variable. The data does not look normally distributed, which is confirmed by the near-null p-value of the shapiro normallity test. Again a histogram is used to visualize the data. The variable contains no missing values thus imputation is not needed. It contains 188 outliers (out of which 98 severe), all on the higher end of the spectrum. We create an additional ordinal mileage factor "f.mileage" to create a discretisation according to the quartiles.
+
+```{r}
+summary(df$mileage)
+
+hist(df$mileage, breaks = 30, freq = F)
+curve(dnorm(x, mean(df$mileage), sd(df$mileage)), add = T)
+shapiro.test(df$mileage)
+
+sum(is.na(df$mileage))
+
+Boxplot(df$mileage)
+length(Boxplot(df$mileage, id = list(n=Inf)))
+sevout_mileage = (quantile(df$mileage,0.25)+(3*((quantile(df$mileage,0.75)-quantile(df$mileage,0.25)))))
+length(which(df$mileage > sevout_mileage))
+
+df$f.mileage <- ifelse(df$mileage <= 5728, 1, ifelse(df$mileage > 5728 & df$mileage <= 16395, 2, ifelse(df$mileage > 16395 & df$mileage <= 33102, 3, ifelse(df$mileage > 33102, 4,0))))
+df$f.mileage <- factor(df$f.mileage,labels=c("LowMileage","LowMidMileage","HighMidMileage","HighMileage"), order = T, levels=c(1,2,3,4))
+table(df$f.mileage)
+```
+
+### variable 6: fuelType
+
+This is a nominal variable with 5 levels in which 'electric', 'hybrid' and 'other' only combine for less then 2% of the instances combined, such that these are all collapsed into the 'other' level. The variable contains no missing values thus imputation is not needed. A bar plot is used to plot the variable. 
+
+```{r}
+summary(df$fuelType)
+elec_idx <- which(df$fuelType == 'Electric')
+prop.table(table(df$fuelType))
+
+df$fuelType[which(df$fuelType == 'Hybrid')] = 'Other'
+df$fuelType[which(df$fuelType == 'Electric')] = 'Other'
+df$fuelType = factor(df$fuelType)
+
+plot(df$fuelType)
+```
+
+### variable 7: tax
+
+This is a continuous ratio variable. The data does not look normally distributed, which is confirmed by the near-null p-value of the shapiro normallity test. Again a histogram is used to visualize the data. The variable contains no missing values thus imputation is not needed. It contains 1422 outliers (out of which all severe), on both sides of the spectrum. We create an additional ordinal tax factor "f.tax" to create a discretisation according to the quartiles.
+
+```{r}
+summary(df$tax)
+
+hist(df$tax, breaks = 30, freq = F)
+curve(dnorm(x, mean(df$tax), sd(df$tax)), add = T)
+shapiro.test(df$tax)
+
+sum(is.na(df$tax))
+
+Boxplot(df$tax)
+length(Boxplot(df$tax, id = list(n=Inf)))
+sevout_tax_upp = (quantile(df$tax,0.25)+(3*((quantile(df$tax,0.75)-quantile(df$tax,0.25)))))
+sevout_tax_low = (quantile(df$tax,0.25)-(3*((quantile(df$tax,0.75)-quantile(df$tax,0.25)))))
+length(which(df$tax > sevout_tax_upp))+length(which(df$tax < sevout_tax_low))
+
+df$f.tax <- ifelse(df$tax <= 125, 1, ifelse(df$tax > 125 & df$tax < 145, 2, ifelse(df$tax == 145, 3, ifelse(df$tax > 145, 4,0))))
+df$f.tax <- factor(df$f.tax,labels=c("Lowtax","LowMidtax","HighMidtax","Hightax"), order = T, levels=c(1,2,3,4))
+table(df$f.tax)
+```
+
+### variable 8: mpg
+
+This is a continuous ratio variable. The data does not look normally distributed, which is confirmed by the near-null p-value of the shapiro normallity test. Again a histogram is used to visualize the data. The variable contains no missing values thus imputation is not needed. It contains 56 outliers (out of which 53 severe), all on the high side of the spectrum. We create an additional ordinal mpg factor "f.mpg" to create a discretisation according to the quartiles.
+
+```{r}
+summary(df$mpg)
+
+hist(df$mpg, breaks = 30, freq = F)
+curve(dnorm(x, mean(df$mpg), sd(df$mpg)), add = T)
+shapiro.test(df$mpg)
+
+sum(is.na(df$mpg))
+
+Boxplot(df$mpg)
+length(Boxplot(df$mpg, id = list(n=Inf)))
+sevout_mpg = (quantile(df$mpg,0.25)+(3*((quantile(df$mpg,0.75)-quantile(df$mpg,0.25)))))
+length(which(df$mpg > sevout_mpg))
+
+df$f.mpg <- ifelse(df$mpg <= 44.1, 1, ifelse(df$mpg > 44.1 & df$mpg <= 52.8, 2, ifelse(df$mpg > 52.8 & df$mpg <= 61.4, 3, ifelse(df$mpg > 61.4, 4,0))))
+df$f.mpg <- factor(df$f.mpg,labels=c("Lowmpg","LowMidmpg","HighMidmpg","Highmpg"), order = T, levels=c(1,2,3,4))
+table(df$f.mpg)
+```
+
+### variable 9: engineSize
+
+This is an interval variable. It contains 673 outliers, out of which 55 severe. There are 15 instances of cars without enginesize which seems like missing values. As it was stated in the data description, these instance could denote electric fuelTypes, however, after inspecting each case more closely it appeared that only 1 of these truely denotes an electric engine and the others are missing values at random (MAR). As the hybrid and electric fuel types were previously set to other, all engine sizes which have values equal to 0 are set to NA and then imputed using the MICE algorithm (an algorithm using chained equations using k-Nearest-Neighbour and regression techniques), except for the electric fuel type. We create an additional ordinal enginesize factor "f.engineSize" to create a discretisation according to the quartiles.   
+
+```{r}
+summary(df$engineSize)
+
+hist(df$engineSize, breaks = 30, freq = F)
+curve(dnorm(x, mean(df$engineSize), sd(df$engineSize)), add = T)
+shapiro.test(df$engineSize)
+
+sum(is.na(df$engineSize))
+
+Boxplot(df$engineSize)
+length(Boxplot(df$engineSize, id = list(n=Inf)))
+sevout_engineSize_upp = (quantile(df$engineSize,0.25)+(3*((quantile(df$engineSize,0.75)-quantile(df$engineSize,0.25)))))
+sevout_engineSize_down = (quantile(df$engineSize,0.25)-(3*((quantile(df$engineSize,0.75)-quantile(df$engineSize,0.25)))))
+length(which(df$engineSize > sevout_engineSize_upp | df$engineSize < sevout_engineSize_down))
+
+df$engineSize[which(df$engineSize == 0)] = NA
+df$engineSize[elec_idx] = 0
+require(mice)
+options(contrasts = c("contr.treatment", "contr.treatment")) ##set options to contr.treatment as mice can only use lm when options is set to this.
+imputation = mice(df, method = 'pmm')
+imputation$imp$engineSize
+df = complete(imputation, 5)
+summary(df$engineSize)
+
+df$f.engineSize <- ifelse(df$engineSize <= 1.5, 1, ifelse(df$engineSize > 1.5 & df$engineSize < 2, 2, ifelse(df$engineSize >= 2 & df$engineSize <= 2, 3, ifelse(df$engineSize > 2, 4,0))))
+df$f.engineSize <- factor(df$f.engineSize,labels=c("LowengineSize","LowMidengineSize","HighMidengineSize","HighengineSize"), order = T, levels=c(1,2,3,4))
+table(df$f.engineSize)
+```
+
+### variable 10: manufacturer
+
+This is a Nominal variable (with four levels) and is thus converted to the factor type. It is visualized by a bar plot, in which it is clear that all levels are well represented. Therefore, no outliers are present. The variable contains no missing values thus imputation is not needed. 
+
+```{r}
+table(df$manufacturer)
+
+df$manufacturer = factor(df$manufacturer)
+plot(df$manufacturer)
+
+sum(is.na(df$manufacturer))
+```
+
+## Data quality report
+
+### Variables
+
+Now that all the variables have been explored, their general quality can be reported on. In terms of missingness, only the engineSize shows missing data and hence, it ranks last in terms of missingness. If we rank the numeric variables in terms of number of outliers, the following list is obtained, starting with the most outliers: Tax, engine size, price, mileage, year and mpg. Combining these two results, it seems like both tax and engine size are the variables containing the most noise in this data set. 
+
+### individuals
+
+Now the individuals are investigated. First the number of univariate outliers per individual are counted and added in a new variable called 'univ_outl_count'. Looking at the 8 individuals with the most univariate outliers (4) it can be concluded that they are all old, highly taxed, low mpg, high engine size and most with a low price and high mileage. A correlation matrix confirms this as it shows a significant negative correlation to the year (so the older the car, the more univ outliers) and a significant positive correlation to both mileage and engine size.
+
+```{r}
+df$univ_outl_count <- 0
+df$univ_outl_count[Boxplot(df$tax, id = list(n=Inf))] = df$univ_outl_count[Boxplot(df$tax, id = list(n=Inf))] + 1
+df$univ_outl_count[Boxplot(df$engineSize, id = list(n=Inf))] = df$univ_outl_count[Boxplot(df$engineSize, id = list(n=Inf))] + 1
+df$univ_outl_count[Boxplot(df$price, id = list(n=Inf))] = df$univ_outl_count[Boxplot(df$price, id = list(n=Inf))] + 1
+df$univ_outl_count[Boxplot(df$mileage, id = list(n=Inf))] = df$univ_outl_count[Boxplot(df$mileage, id = list(n=Inf))] + 1
+df$univ_outl_count[Boxplot(df$year, id = list(n=Inf))] = df$univ_outl_count[Boxplot(df$year, id = list(n=Inf))] + 1
+df$univ_outl_count[Boxplot(df$mpg, id = list(n=Inf))] = df$univ_outl_count[Boxplot(df$mpg, id = list(n=Inf))] + 1
+max(df$univ_outl_count)
+df[which(df$univ_outl_count == 4),]
+
+
+df_of_interest = df[,c(2,3,5,7,8,9,18)]
+cor_outl = cor(df_of_interest)
+require(corrplot)
+par(mfrow=c(1,1))
+corrplot(cor_outl, method = 'number')
+```
+
+### Multivariate Outliers
+
+Moutlier is applied on the numerical variables to find multivariate outliers. With the tax variable included, however, the method returns a singular matrix. Therefore this variable is excluded from the calculation. A very mild threshold of 0.5 % is chosen as signficance level because is already returns a significant amount of outliers; This makes up around 4% of the total amount of instances. It is chosen to delete these outliers from the data set for the rest of the project.  
+
+```{r}
+
+require(chemometrics)
+res.out = Moutlier(df[,c(2,3,5,8,9)], quantile = 0.995, col="green")
+
+which(res.out$md > res.out$cutoff)
+length(which(res.out$md > res.out$cutoff))/5000
+par(mfrow=c(1,1))
+plot( res.out$md, res.out$rd )
+abline(h=res.out$cutoff, col="red")
+abline(v=res.out$cutoff, col="red")
+
+summary(df[which(res.out$md > res.out$cutoff),])
+summary(df)
+
+df = df[-which(res.out$md > res.out$cutoff),]
+```
+
+# Profiling
+
+## Determine if the response variable (price) has an acceptably normal distribution. Address test to discard serial correlation.
+
+To test for autocorrelation the acf() function is used, of which the result can be seen below. 
+```{r}
+acf(df$price)
+```
+
+``` {r}
+shapiro.test(df$price)
+```
+
+
+```{r}
+ggplot(data=df, aes(price, y = ..density..)) +
+  geom_histogram(breaks=seq(0, max(df$price), by=1000),
+                 col='lightblue',
+                 fill='steelblue') +
+  geom_density(lwd=1,
+               col='red') +
+  labs(title="Histogram for price with density", x="Price", y="Count")
+
+```
+
+## Indicate by exploration of the data which are apparently the variables most associated with the response variable (use only the indicated variables).
+
+To do this, the condes function of the FactoMiner package is used, which for the numeric response variable 'price' calculates the correlation of each of the quantitative variables and the coefficient of determination (R^2) for the qualitative variables, together with a p-value for significance. 
+
+For the quantitative variables it is clear both engineSize and year are highly significant positively correlated (r > 0.50, p = 0) to the price. This seems logical as the higher the newer the car is and the bigger the engine, the more it would cost. The mileage and miles per gallon (mpg) are highly significant negatively correlated to the price (r < -0.50 p = 0) which also to be expected: the more a car has driven, the less its value and small motors are more efficient (lower mpg). Tax has a less but also significant positive correlation to the price (r = 0.44, p ~ 0), which makes sense semantically again. To further illustrate the correlations, a correlation matrix is plotted as well. 
+
+For the qualitative variables it is clear that the model explains the most variance in the price variable (R^2 = 0.488, p = 0) (only the price factor scores higher which is to be expected as it is build on the numeric value). This is to be expected as a specific model subsumes a whole series of other variables. The influence of the other qualitative variables are in order (highest R^2): (price, model), age, mileage, mpg, tax, transmission, engineSize, manufacturer and fuelType. Manufacturer and fuel type are poorly associated as they have R^2-values under 10%.   
+
+```{r}
+require(FactoMineR)
+require(corrplot)
+
+res.con = condes(df,3)
+res.con$quanti
+res.con$quali
+
+df_num = df[,c(3,5,7,8,9,11)]
+cor_num = cor(df_num)
+corrplot(cor_num, method = 'number')
+```
+
+## Define a polytomic factor f.age for the covariate car age according to its quartiles and argue if the average price depends on the level of age. Statistically justify the answer.
+
+
+Given the evidence below, we argue that the price is dependent on the level of age. Firstly, in the boxplots it can be observed that the older the car (Q1) the lower the average price of the car. This is also seen clearly in the distribution plot below. Secondly, the wilcoxon test shows that the means of these levels are not equal meaning that some relation exists between the factor and the response variable. Lastly, using Kolmogorov-Smirnov we see that the price distributions of these levels are also not the same, further strenghtening our argument. 
+
+```{r}
+ggplot(df, aes(x=price, fill=f.age)) +
+  geom_density(alpha=.5)
+```
+
+
+```{r}
+ggplot(df, aes(y=price, fill=f.age)) +
+  geom_boxplot(alpha=0.5)
+```
+
+We perform pairwise wilcoxon test to check for similar means. Looking at the boxplot and distribution plot we can already expect that these are not going to be similar.
+The result of the wilcoxon test indicates our hypothesis was right that there is a clear difference between the means of the different quartiles.
+
+
+```{r}
+pairwise.wilcox.test(df$price, df$f.age)
+```
+
+We perform kolmogorov-Smirnov test whether the distributions of 2 quartiles are the same. From the plot above we can already assume that is likely these test are all going to reject the Null hypothesis, but we will check anyway.
+
+AgeQ1 vs AgeQ2: distributions are not similar.
+
+```{r}
+ks.test(df$price[df$f.age=="LowAge"], df$price[df$f.age=="LowMidAge"])
+```
+
+AgeQ1 vs AgeQ3: distributions are not similar.
+
+```{r}
+ks.test(df$price[df$f.age=="LowAge"], df$price[df$f.age=="HighMidAge"])
+```
+
+AgeQ1 vs AgeQ4: distributions are not similar.
+
+```{r}
+ks.test(df$price[df$f.age=="LowAge"], df$price[df$f.age=="HighAge"])
+```
+
+AgeQ3 vs AgeQ2: distributions are not similar.
+
+```{r}
+ks.test(df$price[df$f.age=="HighMidAge"], df$price[df$f.age=="LowMidAge"])
+```
+
+AgeQ4 vs AgeQ2: distributions are not similar.
+
+```{r}
+ks.test(df$price[df$f.age=="HighAge"], df$price[df$f.age=="LowMidAge"])
+```
+
+AgeQ4 vs AgeQ3: distributions are not similar.
+
+```{r}
+ks.test(df$price[df$f.age=="HighAge"], df$price[df$f.age=="HighMidAge"])
+```
+
+# Price Modelling
+
+## Calculate the linear regression model that explains the price from the age: interpret the regression line and assess its quality.
+
+A linear model using the logarithmic price and n.age variable is constructed. It yields an R-sq of 46%, which is insufficient for accurate predictions. However, all diagnostic plots show solid results. The residuals vs fitted plot yields a more or less straight line which confirms linearity. The Q-Q plot indicates more or less normally distributed standard errors in the model. The scale-location plot gives a straight line which indicates that homoscedastisity is satisfied. The Residuals vs. leverage plot shows that there are some high leverage points in the model. However, they more or less lie in a straight line which indicates that there are no severe contradicting high-leverage instances in our simple model. An influence plot confirms this behaviour. 
+
+```{r}
+require(MASS)
+
+lmAgeLog = lm(log(price)~n.age, data = df)
+par(mfrow=c(2,2))
+summary(lmAgeLog)
+plot(lmAgeLog)
+par(mfrow=c(1,1))
+plot(log(price) ~ n.age, data = df)
+influencePlot(lmAgeLog)
+abline(lmAgeLog, col="red")
+```
+
+## What is the percentage of the price variability that is explained by the age of the car?
+
+As explained in question 6: for the log(price) ~ n.age model about 46% of the price variability is explained. This is insufficient for accurate prediction, such that additional explanatory variables are expected to be useful. 
+
+##. Do you think it is necessary to introduce a quadratic term in the equation that relates the price to its age?
+
+To see if a polynomial transformation on n.age might be beneficial, the boxTidwell function is applied on the linear model (in which a constant term that doesnt influence results is added as the function can't handle zero values on the age). This function returns a lambda value of 0.87. This value seems to indicate that introducing a polynomial term to the age is unnecessary. However, to further confirm this believe, a transformation in the order of the square root is applied and evaluated. 
+
+The square root term does not significantly improve the R-sq value (0.005 improvement). The anova test indicates that the models are different, however with a borderline p-value of 0.023. The diagnostic plots show that introducing the square root further increases the leverage of already high-lev points. This impacts the model negatively as it is more prone for overfitting.    
+
+Lastly, looking at AIC, the addition of this polynomial term improves the criterion marginally. However, this insignificant improvement does not justify the addition of an extra degree of freedom that again allows extra room for overfitting. 
+
+Concluding, as the benefit of adding a polynomial term to the model, in terms of explainability, is very small, and as the quadratic models might be more biased towards values with high leverage, it is not necessary to add a quadratic term. 
+
+```{r}
+boxTidwell(log(price)~I(n.age+0.001), data = df)
+
+lmAgeLogSqrt = lm(log(price)~(sqrt(n.age)+n.age), data=df)
+
+summary(lmAgeLog)
+summary(lmAgeLogSqrt)
+
+anova(lmAgeLog, lmAgeLogSqrt)
+
+par(mfrow=c(2,2))
+
+plot(lmAgeLog)
+plot(lmAgeLogSqrt)
+
+AIC(lmAgeLog, lmAgeLogSqrt)
+
+rm(lmAgeLogSqrt)
+```
+
+## Are there any additional explanatory numeric variables needed to the car price? Study collinearity effects.
+
+First, all remaining numeric variables are naively additively added to the model. This yields a signficantly better prediction model with an R-sq of about 83%. However, to simplify our model, collinearity is investigated to see if there are variables that are redundant in our model. 
+
+First a correlation matrix is plotted. This hints that possible candidates for linearity are: mileage & age (rho = 0.80) and tax & mpg (rho = -0.61). Next, the variance inflation factor is calculated for the numeric variables. This indicates whether or not a variable correlates too much with other predictors such that it becomes redundant in the model. In general, a VIF-value larger than 1/(1-R_sq) is considered as showing too much collinear behaviour. The result for every variable is always significantly below this threshold such that no severe collinearity is detected in the model. To further confirm this hypothesis, models are build by alternately removing the highly correlated variables from the logarithmic model. Then, ANOVA is applied to test whether or not the models are significantly predicting something else and AIC to see what model is considered the best. These tests show that the model with all numeric variables performs the best and that no severe collinearity is present in our model.
+
+Therefore, the model of choice for the continuation of the project will be the one with all numeric variables.
+
+
+```{r}
+lmNumLog = lm(log(price) ~ n.age+mileage+tax+mpg+engineSize, data=df)
+t = summary(lmNumLog)
+
+df_num = df[,c(3,5,7,8,9,11)]
+cor_num = cor(df_num)
+par(mfrow=c(1,1))
+corrplot(cor_num, method = 'number')
+
+vif(lmNumLog)
+
+lmNumLog2 = lm(log(price) ~ n.age+tax+mpg+engineSize, data=df)
+lmNumLog3 = lm(log(price) ~ n.age+mileage+mpg+engineSize, data=df)
+lmNumLog4 = lm(log(price) ~ n.age+tax+mileage+engineSize, data=df)
+
+anova(lmNumLog, lmNumLog2)
+anova(lmNumLog, lmNumLog3)
+anova(lmNumLog, lmNumLog4)
+
+AIC(lmNumLog, lmNumLog2, lmNumLog3, lmNumLog4)
+```
+
+## After controlling by numerical variables, indicate whether the additive effect of the available factors on the price are statistically significant.
+
+All the remaining available factors (except the ones defined on the numeric variables like fe. f.age) are now added one by one to the current model. This yields an improvement of R-sq of about 6%. An anova test indicates significant difference in prediction. The vif function indicates no significant collinearity by introducing the factors. Finally, the AIC function shows that the model with the factors is significantly better than the one without. Therefore, it can be concluded that the effect of the available factors is statistically significant and positive in its prediction capabilities.
+
+
+```{r}
+lmNumLog = lm(log(price) ~ n.age+tax+mileage+engineSize+mpg, data=df)
+lmFactLog = lm(log(price) ~ n.age+tax+mileage+engineSize+mpg+transmission+fuelType+manufacturer, data=df)
+
+summary(lmNumLog)
+summary(lmFactLog)
+
+anova(lmFactLog, lmNumLog)
+
+vif(lmFactLog)
+
+AIC(lmFactLog, lmNumLog)
+
+summary(lmFactLog)
+```
+
+## Select the best model available so far. Interpret the equations that relate the explanatory variables to the answer (rate).
+
+From the AIC we find that the model with all factors, all numeric variables and a logarithmic transformation has the best criterion.
+
+In order to interpret the rates of the model for each of the variables, we use the contrasts option "sum" to be able to derive the coefficients for the factors that are subsumed by the intercept. 
+
+Because we are using contr.sum, the general equation will be Yhat = mu + alpha + beta + gamma + error, where alpha describes the transmission factor, beta describes the fuelType factor, and gamme describes the manufacturer factor. For alpha, beta, gamma we have: sum(alpha) = 0, sum(beta) = 0, and sum(gamme) = 0. Most of the rates of the factors are given by the summary fucntion. However, cases transmission = Automatic, fuelType = Diesel and manufacturer = Audi are contained in the intercept of the equation. These rates are calculated using the fact that the coefficients sum to zero.   
+
+We thus find coefficients:
+transmissionAutomatic = - (2.755e-02 - 6.539e-02) = 3.784e-02
+fuelTypeDiesel = - (1.374e-01 - 0) = - 1.374e-01 (0 because the p-value is above 0.05)
+manufacutererAudi = - (6.122e-02 - 2.367e-02 + 7.930e-02) = - 1.1685e-01
+
+The rest of the rates can be found in the summary.
+
+Now, some graphical representations of the behaviour of the variables in the model are investigated and looked in to. First, an added variable plot is obtained using the avPlots-function. This plot represents for each predictor in the model, the actual behaviour of the response variable by keeping the influence of the other explanatory variables constant. This scatterplot matrix clearly represents the linear relationships between the explanatory variables and response variable. However, to further look for monotone linear relationsships that might benefit from a transformation,  the crPlots funtion is used, which is a Partial-Residual plot. These are partial regressions and are used to distinguish between monotone linearity (which might benefit from a transformation) and non-monotone linearity (which don't). From these plots however, no clear cases of monotone linearity are found. 
+However, from the av-plot showing mpg vs the prices and petrol vs prices, we see that this variable is heavily influenced by a few values with high leverage. This will be discussed in question 14, after which the av-plot will be shown again.
+
+```{r}
+AIC(lmAgeLog, lmFactLog, lmNumLog, lmNumLog2, lmNumLog3, lmNumLog4)
+
+options(contrasts = c("contr.sum", "contr.sum"))
+lmBest= lm(log(price) ~ n.age+tax+mileage+engineSize+mpg+transmission+fuelType+manufacturer, data=df)
+summary(lmBest)
+
+boxTidwell(log(price)~ mileage, ~n.age+tax+engineSize+mpg+transmission+fuelType+manufacturer, data=df, max.iter = 70)
+boxTidwell(log(price)~ engineSize, ~n.age+tax+mileage+mpg+transmission+fuelType+manufacturer, data=df, max.iter = 70)
+boxTidwell(log(price)~ mpg, ~n.age+tax+mileage+engineSize+transmission+fuelType+manufacturer, data=df, max.iter = 70)
+boxTidwell(log(price)~ I(tax+0.01), ~n.age+tax+mileage+engineSize+transmission+fuelType+manufacturer, data=df, max.iter = 70)
+
+lmBest2 = lm(log(price) ~ n.age+tax+engineSize+mpg+transmission+fuelType+manufacturer, data=df)
+lmBest3 = lm(log(price) ~ n.age+tax+log(engineSize)+mpg+transmission+fuelType+manufacturer, data=df)
+lmBest4 = lm(log(price) ~ n.age+tax+engineSize+log(mpg)+transmission+fuelType+manufacturer, data=df)
+summary(lmBest)
+summary(lmBest2)
+summary(lmBest3)
+summary(lmBest4)
+AIC(lmBest, lmBest2, lmBest3, lmBest4)
+
+avPlots(lmBest)
+```
+
+
+## Graphically assess the best model obtained so far.
+
+The residuals vs Fitted plot shows that the residuals follow a good linear pattern, which meets the regression assumptions very well. The Normal Q-Q plot shows that the standard errors are mostly normally distributed with a small amount of deviating prediction at the upper end of the tail. The scale-location plot shows that homoscedasticity is satisfied as a straight line is obtained. The residuals vs leverage plot shows that our model includes some high-leverage (so highly influential in our model) points that deviate significantly (more than 4 standardized residuals away) and asymmetrically from the prediction. An influence plot further confirms this believe. 
+
+To quantify their influence, the model is reconstructed without these noteworthy points. The result is that the errors are now even more closely normally distributed around the predictions. Moreover, the new high-leverage points are more closely and symmetrically distributed around the predictions. This new model also yields a marginal R-squared improvement of about 0.3%. It can be concluded that removing the highly influential points results in more favorable diagnostic plots. This thus concludes the new best model. 
+
+As discussed in 11. the av-plot is shown again in order to demonstrate that the high levearge points in mpg have been removed and no longer influence its line.
+
+```{r}
+options(contrasts = c("contr.treatment", "contr.treatment"))
+summary(lmBest)
+par(mfrow=c(2,2))
+plot(lmBest)
+par(mfrow=c(1,1))
+cooksd <- cooks.distance(lmBest)
+plot(cooksd)
+influencePlot(lmBest, id=list(n=3, method="noteworthy"))
+
+high_infl = rownames(as.data.frame(influencePlot(lmBest, id=list(n=3, method="noteworthy"))))
+df_no_high_infl = df[!(rownames(df) %in% high_infl),]
+lmBest_no_high_infl = lm(log(price) ~ n.age+tax+mileage+engineSize+mpg+transmission+fuelType+manufacturer, data=df_no_high_infl)
+influencePlot(lmBest_no_high_infl, id=list(n=3, method="noteworthy"))
+
+summary(lmBest)
+summary(lmBest_no_high_infl)
+
+par(mfrow=c(2,2))
+plot(lmBest)
+plot(lmBest_no_high_infl)
+
+lmBest = lm(log(price) ~ n.age+tax+mileage+engineSize+mpg+transmission+fuelType+manufacturer, data=df_no_high_infl)
+
+avPlots(lmBest)
+```
+
+## Assess the presence of outliers in the studentized residuals at a 99% confidence level. Indicate what those observations are.
+
+As values with high leverage were already removed in the last question, the outliers found here might not coincide with the outliers of the original model.
+
+First, a histogram is plotted to make sure the residuals follow a nice and smooth normal distribution, which they do. Then the studentized residuals at the 99% CI are calculated. The boxplot and plot of the residuals show which values are considered outliers. Interestingly, the plot of residuals shows many residuals grouped tightly together in the right bottom of the plot. Out of curiosity, these will be inspected more in depth a little later. First, the cooks distance is plotted, together with the outliers crossed out. As can be seen, most observations with a high leverage also turn up as residual outliers in the model.
+
+From the summary, it can be observed that half of the outliers are Volkswagens. Using a boxplot the prices of the residual outliers vs the manufacturer are plotted to see if Volkswagen deviates from the others, which apart from the 4 outliers from Mercedes, is not the case.
+Lastly, all prices are plotted, together with the prices of the outliers per manufacturer (Volkswagen=blue, Audi=red, Mercedes=green, and BMW=orange). From this it seems that the earlier observed clustered group are all volkswagens. When manually looking at these observations it appears that these all belong to a specific model line named "Up". Weirdly, it appears that not all "Up" models are found to be outliers, although many of them have a similar price. From the summary, it seems that these observations are all cars with a low age, low mileage, and a low price, which is in constrats with most other cars.
+
+```{r}
+par(mfrow=c(1,1))
+hist(lmBest$residuals, freq=FALSE, breaks=20)
+curve(dnorm(x, mean(lmBest$residuals), sd(lmBest$residuals)), col="blue", add = T)
+
+res.lower_bound <- quantile(lmBest$residuals, 0.005)
+res.upper_bound <- quantile(lmBest$residuals, 0.995)
+res.outl <- unname(which(lmBest$residuals > res.upper_bound | lmBest$residuals < res.lower_bound))
+length(res.outl)
+res.outl
+
+Boxplot(lmBest$residuals)
+abline(h=res.upper_bound, col="red")
+abline(h=res.lower_bound, col="red")
+
+plot(lmBest$residuals)
+abline(h=res.upper_bound, col="red")
+abline(h=res.lower_bound, col="red")
+points(res.outl, lmBest$residuals[res.outl], pch=4, col="red")
+
+cooksd <- cooks.distance(lmBest)
+plot(cooksd)
+points(res.outl, cooksd[res.outl], pch=4, col="red")
+
+res.outl_df <- df[res.outl,]
+res.outl_df$orig_idx <- res.outl
+
+names(res.outl_df)
+
+summary(res.outl_df[c(1:12)])
+summary(df[c(1:12)])
+boxplot(price~manufacturer, data=res.outl_df)
+
+plot(df$price)
+points(res.outl_df$orig_idx[which(res.outl_df$manufacturer=="VW")], res.outl_df$price[which(res.outl_df$manufacturer=="VW")], pch=19, cex=1.2, col="blue")
+points(res.outl_df$orig_idx[which(res.outl_df$manufacturer=="Audi")], res.outl_df$price[which(res.outl_df$manufacturer=="Audi")], pch=19, cex=1.2, col="red")
+points(res.outl_df$orig_idx[which(res.outl_df$manufacturer=="Mercedes")], res.outl_df$price[which(res.outl_df$manufacturer=="Mercedes")], pch=19, cex=1.2, col="green")
+points(res.outl_df$orig_idx[which(res.outl_df$manufacturer=="BMW")], res.outl_df$price[which(res.outl_df$manufacturer=="BMW")], pch=19, cex=1.2, col="orange")
+
+hist(df$price)
+hist(df$price[which(df$model==" Up")], col='red', add=T)
+hist(res.outl_df$price[which(res.outl_df$model==" Up")], col="blue", add=T)
+
+summary(df[which(df$model==" Up"), c(1:12)], col='red', add=T)
+summary(res.outl_df[which(res.outl_df$model==" Up"), c(1:12)])
+
+```
+
+## Study the presence of a priori influential data observations, indicating their number according to the criteria studied in class.
+
+This question has mostly already been answered, high leverage observations are removed from the model. However, the proper cut off value was not used in this example. Therefore, this is shown in the following segment. In this case, only 5 a priori values where found, assuming that the dataset is large enough to use hat>3*mean(hat) instead of multiplying with 2.
+
+```{r}
+high_lev <- as.data.frame(influencePlot(lmBest, id=list(n=3, method="noteworthy")))
+mean_hat <- mean(high_lev$Hat)
+
+priori <- row.names(high_lev[which(high_lev$hat>3*mean_hat)])
+priori
+```
+
+## Study the presence of a posteriori influential values, indicating the criteria studied in class and the actual atypical observations.
+
+A posteriori influential values are found using the dfbetas function. These are first plotted against their cut-off value, which is given by 2/sqrt(n). Then for each variable in the model, it is tested which observations are considered as a posteriori influential values, which are then temporarely removed from the data set (which already did not contain high leverage values).
+
+The best model is then reconstructed on this new data set and compared with its original to see the difference. From the summary, it can be observed that the change mostly affected the coefficients of the tax, tranmission levels and manufacturer levels. The R-squared of the model has increased by 6% up to 0.9471.
+
+Graphically, it can be observed that indeed several high leverage observations where taken out, which improves the models price variability coverage drastically. However, this model is build by deleting more then 20% of the data set, all highly influential points, and hence introduces a most likely significant bias in our predictions. Therefore, in the last model, the original best model from question 14 is used.
+
+```{r}
+betas <- as.data.frame(dfbetas(lmBest))
+betas_cutoff = 2 / sqrt(dim(df_no_high_infl)[1])
+betas_cutoff
+
+par(mfrow=c(1,1))
+matplot(betas, type="l", lwd=2, col= rainbow(ncol(betas)))
+lines(sqrt(cooks.distance(lmBest)), col=4, lwd=3)
+abline(h=betas_cutoff, lty=3,lwd=1,col=1)
+abline(h=-betas_cutoff[1], lty=3,lwd=1,col=1)
+legend("topleft", legend=c("Cook d", "DFBETA Cutoff"),
+       col=c(4, 1), lty=1:2, cex=0.8)
+
+legend("bottomleft", legend=names(coef(lmBest)),
+       col=rainbow(ncol(betas)), lty=1:2, cex=0.8, ncol=2)
+
+idx_list <- c()
+
+idx_list <- append(idx_list, which(betas$n.age>betas_cutoff | betas$n.age< -betas_cutoff))
+idx_list <- append(idx_list, which(betas$tax>betas_cutoff | betas$tax< -betas_cutoff))
+idx_list <- append(idx_list, which(betas$mileage>betas_cutoff | betas$mileage< -betas_cutoff))
+idx_list <- append(idx_list, which(betas$engineSize>betas_cutoff | betas$engineSize< -betas_cutoff))
+idx_list <- append(idx_list, which(betas$transmissionManual>betas_cutoff | betas$transmissionManual< -betas_cutoff))
+idx_list <- append(idx_list, which(betas$`transmissionSemi-Auto`>betas_cutoff | betas$`transmissionSemi-Auto`< -betas_cutoff))
+idx_list <- append(idx_list, which(betas$fuelTypeOther>betas_cutoff | betas$fuelTypeOther< -betas_cutoff))
+idx_list <- append(idx_list, which(betas$fuelTypePetrol>betas_cutoff | betas$fuelTypePetrol< -betas_cutoff))
+idx_list <- append(idx_list, which(betas$manufacturerBMW>betas_cutoff | betas$manufacturerBMW< -betas_cutoff))
+idx_list <- append(idx_list, which(betas$manufacturerVW>betas_cutoff | betas$manufacturerVW< -betas_cutoff))
+idx_list <- append(idx_list, which(betas$`(Intercept)`>betas_cutoff | betas$`(Intercept)`< -betas_cutoff))
+idx_list = unique(idx_list)
+
+df_no_post <- df_no_high_infl[-idx_list,]
+
+lmBest_no_posteriori <- lm(log(price) ~ n.age+tax+mileage+engineSize+mpg+transmission+fuelType+manufacturer, data=df_no_post)
+
+summary(lmBest)
+summary(lmBest_no_posteriori)
+
+par(mfrow=c(2,2))
+plot(lmBest)
+plot(lmBest_no_posteriori)
+```
+
+## Given a 5-year old car, the rest of numerical variables on the mean and factors on the reference level, what would be the expected price with a 95% confidence interval?
+
+Reference factors are transmission = Automatic, fuelType = Diesel and manufacturer = Audi. Using the best model, the price is expected to lie in interval [17530.93, 18110.67] with a confidence of 95 %. 
+
+```{r}
+sample <- data.frame(n.age=5, tax=mean(df_no_high_infl$tax), mileage=mean(df_no_high_infl$mileage), engineSize=mean(df_no_high_infl$engineSize), mpg=mean(df_no_high_infl$mpg), transmission="Automatic", fuelType="Diesel", manufacturer="Audi")
+
+sam.fit <- predict.lm(lmBest, sample, se.fit=TRUE, interval="confidence", level=0.95)
+
+exp(sam.fit$fit)
+```
+
+## Summarize what you have learned by working with this interesting real dataset.
+
+This project is a clear example of how a data set that at first doesn't look that complex requires a lot of careful preprocessing, transformation, analysis and constant re-analysis. 
+
+The preprocessing part and exploratory analysis are components we were already a bit more familiar with and thus were carried out rather quickly. However, at first, multivariate outliers weren't accounted for, such that are initial results were quite different and more imbalanced than after these were removed from the data set. This showcased the importance of careful preprocessing in the sense that skipping steps can severely influence later results. 
+
+The actual body of the project consisted mostly of building a lot of linear models and its accompanying diagnostic plots. This is an intensive process but step by step improves your best model and at the same time reveal a lot of information in a data set. A simple example of this is the need of the logarithmic transformation which drastically improves the variability coverage of your model but at the same time decreases the influence and interaction of some explanatory variables, thus yielding information about the actual influence of attributes in a data set. Furthermore, we believe that balancing between improving the response variables' variabilty coverage and not overfitting or adding to much complexity and/or degrees of freedom is a ever recurring and crucial reality in most data science projects. 
+
+To sum up, working with this data set is an important reference of how to deal with typical difficulties as well as an overview of what to expect in data science projects.
+
+
+
