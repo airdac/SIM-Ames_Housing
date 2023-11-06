@@ -26,8 +26,13 @@ train = read.csv("train.csv")
 
 
 ```{r}
+<<<<<<< Updated upstream
 # Import necessary libraries
 
+=======
+# Import the necesary library
+library(dplyr) 
+>>>>>>> Stashed changes
 library(car)
 library(missMDA)
 library(FactoMineR)
@@ -52,7 +57,11 @@ sense? Does the data follow the appropriate rules for its field? Does it prove o
 working theory, or bring any insight to light? Can you find trends in the data to help you form a new theory? If not, is that because of a data quality issue?
 
 ```{r}
+<<<<<<< Updated upstream
 # With the summary, we can see that there are 80 variables in total.
+=======
+# With the summary, we can see that there is over 80 variables in total.
+>>>>>>> Stashed changes
 summary(test)
 # And the name of each feature are below.
 str(test)
@@ -64,7 +73,7 @@ Categorical_val = c('MSSubClass',"MSZoning","Street","Alley","LotShape","LandCon
 
 # The numerical variable are
 
-Numerical_val = c("LotFrontage","LotArea","MasVnrArea","BsmtFinSF1","BsmtFinSF2","BsmtUnfSF","TotalBsmtSF","1stFlrSF","2ndFlrSF","LowQualFinSF","GrLivArea","BsmtFullBath","BsmtHalfBath","FullBath","HalfBath","Bedroom","Kitchen","TotRmsAbvGrd","Fireplaces","GarageCars","GarageArea","WoodDeckSF","OpenPorchSF","EnclosedPorch","X3SsnPorch","ScreenPorch","PoolArea","MiscVal")
+Numerical_val = c("LotFrontage","LotArea","MasVnrArea","BsmtFinSF1","BsmtFinSF2","BsmtUnfSF","TotalBsmtSF","X1stFlrSF","X2ndFlrSF","LowQualFinSF","GrLivArea","BsmtFullBath","BsmtHalfBath","FullBath","HalfBath","BedroomAbvGr","KitchenAbvGr","TotRmsAbvGrd","Fireplaces","GarageCars","GarageArea","WoodDeckSF","OpenPorchSF","EnclosedPorch","X3SsnPorch","ScreenPorch","PoolArea","MiscVal")
 
 # And the date variable are
 
@@ -72,6 +81,7 @@ Date_val = c("YearBuilt","YearRemodAdd","GarageYrBlt","MoSold","YrSold")
 
 ```
 
+<<<<<<< Updated upstream
 When we have set the correct type of each variable we can start to analyse the database. We can do a quick EDA on both databases using automatic tools like "DataExplorer".
 
 Using those reports we see that databases "test" and "train" have the same variable (80) except for "SalePrice", that can only be found in "train". In more detail, we can see that "train" db contains the firsts 1460 observations, of houses that were sold, and "test" contains the next 1459 observations of houses in which we don't know the price that were sold. We will work to predict the price of those houses.
@@ -123,6 +133,36 @@ res.cat$category
 
 
 **1. Comments: Exploratory Data Analysis and Model Fitting should take train sample only.**
+=======
+test_num = select(test, Numerical_val); summary(test_num)
+
+# Below numerical variable can also convert into categorical
+sapply(select(test, Numerical_val), unique)
+
+# Bacause there are only few measures
+BsmtFullBath
+BsmtHalfBath
+FullBath        
+HalfBath       
+BedroomAbvGr
+KitchenAbvGr    
+TotRmsAbvGrd
+Fireplaces       
+GarageCars
+X3SsnPorch       # There is only 13 measure different than 0.
+ScreenPorch       
+PoolArea          # There is only 6 measure different than 0. 
+MiscVal
+
+# General Assumptions
+
+```{r}
+# Assumptions 1. The PoolArea, although it's a Numerical variable, the percentage recorded is 6 out of 1459 observations (0,4% of all data). So we thinks maybe we can reduce it to a binary variable (Having or Not a Pool)
+
+
+```
+
+>>>>>>> Stashed changes
 
 
 ```{r}
