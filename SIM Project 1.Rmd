@@ -26,7 +26,7 @@ train = read.csv("train.csv")
 
 
 ```{r}
-# Import the necesary library
+# Import the necessary library
 library(dplyr) 
 library(car)
 library(missMDA)
@@ -145,7 +145,7 @@ MiscVal
 
 ```
 
->>>>>>> Stashed changes
+
 
 
 ```{r}
