@@ -26,42 +26,25 @@ train = read.csv("train.csv")
 
 
 ```{r}
-<<<<<<< Updated upstream
-# Import necessary libraries
-
-=======
 # Import the necesary library
 library(dplyr) 
->>>>>>> Stashed changes
 library(car)
 library(missMDA)
 library(FactoMineR)
 ```
 
 **0. Preprocessing and data preparation**
-Any dataset for modelling
-purposes should include a first methodological step on data preparation about
+Any dataset for modelling purposes should include a first methodological step on data preparation about
 
 - Removing duplicate or irrelevant observations
-- Fix structural errors (usually coding errors, trailing blanks in labels, lower/upper case
-consistency, etc.).
-- Check data types. Dates should be coded as such and factors should have level names (if
-possible, levels have to be set and clarify the variable they belong to). This point is sometimes included under data transformation process. New derived variables are to be produced
-sometimes scaling and/or normalization (range/shape changes to numeric variables) or
-category regrouping for factors (nominal/ordinal).
+- Fix structural errors (usually coding errors, trailing blanks in labels, lower/upper case consistency, etc.).
+- Check data types. Dates should be coded as such and factors should have level names (if possible, levels have to be set and clarify the variable they belong to). This point is sometimes included under data transformation process. New derived variables are to be produced sometimes scaling and/or normalization (range/shape changes to numeric variables) or category regrouping for factors (nominal/ordinal).
 - Filter unwanted outliers. Univariate and multivariate outliers have to be highlighted. Remove register/erase values and set NA for univariate outiers.
-- Handle missing data: figure out why the data is missing. Data imputation is to be considered
-when the aim is modelling (imputation has to be validated).
-- Data validation is mixed of ‘common sense and sector knowledge’: Does the data make
-sense? Does the data follow the appropriate rules for its field? Does it prove or disprove the
-working theory, or bring any insight to light? Can you find trends in the data to help you form a new theory? If not, is that because of a data quality issue?
+- Handle missing data: figure out why the data is missing. Data imputation is to be considered when the aim is modelling (imputation has to be validated).
+- Data validation is mixed of ‘common sense and sector knowledge’: Does the data make sense? Does the data follow the appropriate rules for its field? Does it prove or disprove the working theory, or bring any insight to light? Can you find trends in the data to help you form a new theory? If not, is that because of a data quality issue?
 
 ```{r}
-<<<<<<< Updated upstream
 # With the summary, we can see that there are 80 variables in total.
-=======
-# With the summary, we can see that there is over 80 variables in total.
->>>>>>> Stashed changes
 summary(test)
 # And the name of each feature are below.
 str(test)
