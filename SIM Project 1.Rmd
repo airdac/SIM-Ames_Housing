@@ -20,8 +20,8 @@ editor_options:
 if(!is.null(dev.list())) dev.off()
 rm(list = ls())
 
-test = read.csv("test.csv")
 train = read.csv("train.csv")
+test = read.csv("test.csv")
 
 # And the combination of both dataset are:
 df = rbind(test, train[,-81])
@@ -32,7 +32,7 @@ Done - Removing duplicate or irrelevant observations
 Done - Fix structural errors (usually coding errors, trailing blanks in labels, lower/upper case consistency, etc.).
 Done - Check data types. Dates should be coded as such and factors should have level names (if possible, levels have to be set and clarify the variable they belong to). This point is sometimes included under data transformation process. New derived variables are to be produced sometimes scaling and/or normalization (range/shape changes to numeric variables) or category regrouping for factors (nominal/ordinal).
 Done - Filter unwanted outliers. Univariate and multivariate outliers have to be highlighted. Remove register/erase values and set NA for univariate outiers.
-Done - Handle missing data: figure out why the data is missing. Data imputation is to be considered when the aim is modelling (imputation has to be validated).
+In process - Handle missing data: figure out why the data is missing. Data imputation is to be considered when the aim is modelling (imputation has to be validated).
 
 
 - Data validation is mixed of ‘common sense and sector knowledge’: Does the data make sense? Does the data follow the appropriate rules for its field? Does it prove or disprove the working theory, or bring any insight to light? Can you find trends in the data to help you form a new theory? If not, is that because of a data quality issue?
@@ -56,9 +56,9 @@ Any data set for modelling purposes should include a first methodological step o
 
 ```{r}
 # With the summary, we can see that there are 80 variables in total.
-summary(test)
+summary(train)
 # And the name of each feature are below.
-str(test)
+str(train)
 # Analyzing all the feature will be an exhausting work. So there should be some way to reduce the dimensional. According to the statement of this project, we should retain all the numerical variable and 10 categorical variable.
 
 # The categorical variable are below
@@ -79,21 +79,21 @@ Date_val = c("YearBuilt","YearRemodAdd","GarageYrBlt","MoSold","YrSold")
 
 
 ```{r}
-# Find the numerical sets and categorical sets
-test_num = select(test, Numerical_val); summary(test_num)
-cat_num = select(test, Categorical_val); summary(cat_num)
 # Some numerical variable just contain few unique values, which means can be converted into categorical. Here below we can see which of them.
-sapply(select(df, Numerical_val), table)
-sapply(select(df, Categorical_val), table)
+sapply(select(train, Numerical_val), table)
+sapply(select(train, Categorical_val), table)
+sapply(select(train, Date_val), table)
 
 ```
 
 
 ```{r}
-# The LotFrontage has a percentage of missing quite high, 15,55% (227/1459). And it's the measure of distance from the property to the street. We'll need to check if it's by random or not, and decide to keep it or remove it.
+# The LotFrontage has a percentage of missing quite high, 17.75% (259/1459). And it's the measure of distance from the property to the street. We'll need to check if it's missing by random or not, and decide to keep it or remove it.
 # For this purpose, we'll use the Little test to validade if it's a MCAR, MAR or MNA.
 
-# little.test <- LittleMCAR(test$LotFrontage)
+# little.test <- LittleMCAR(train)
+
+# NO ES POT FER SERVIR LITTLE TEST PERQUE ELS VARIABLES HA SUPERAT ELS 50.
 
 ```
 
@@ -101,18 +101,20 @@ sapply(select(df, Categorical_val), table)
 # General Assumptions
 
 ```{r}
-# Assumptions 1. The PoolArea, although it's a Numerical variable, the percentage recorded is only 6 out of 1459 observations (0,4% of all data). So we thinks maybe can be reduced to a binary variable (Having or Not a Pool)
+# Assumptions 1. The PoolArea, although it's a Numerical variable, the percentage recorded is only 7 out of 1459 observations (0,48% of all data). So we thinks maybe can be reduced to a binary variable (Having or Not a Pool)
 
-# Assumption 2. The LowQualFinSF is referring to Surface finished but with low quality. As same as PoolArea, there is only 14 unique observation different than 0. So we can reduce it into binary variable (Having or not a low quality surface.)
+# Assumption 2. The LowQualFinSF is referring to Surface finished but with low quality. As same as PoolArea, there is only 23 unique observation different than 0. So we can reduce it into binary variable (Having or not a low quality surface.)
 
-# Assumption 3. The LotFrontage has a percentage of missing quite high, 15,55% (227/1459). And it's the measure of distance from the property to the street. Using condes function, we can see that the relation between it and the target is 0.3518, with P-value 2,6*10^-36. We can consider to remove it.
+# Assumption 3. The LotFrontage has a percentage of missing quite high, 17.75% (259/1459). And it's the measure of distance from the property to the street. Using condes function, we can see that the relation between it and the target is 0.3518, with P-value 2,6*10^-36. We can consider to remove it.
 
 # Assumption 4. The MSSubClass, OverallQual and OverallCond, although are categorical variables, they are presented as integer. So we need to transform it into factor.
 #               For the OverallQual and OverallCond variable, their level are scaled from 1 to 10. Instead of that, we'll like to switch to categorical (Very pool to very Excelent)
 
-# Assumption 5. Checking the categorical set, we found that "Exterior2nd" has a record of "Brk Cmn", which does not match with the data description "BrkComm". So we rename it.
+# Assumption 5. Checking the categorical set, we found that "Exterior2nd" has a record of "Brk Cmn", which does not match with the data description "BrkComm". So we rename it (in order to match with "Exterior1st")
 
 # Assumption 6. For all those categorical variable that we find previously, we'll transform it into Factor.
+
+# Assumption 7. The month will be transformed into factor and renamed to abbreviated names.While other date as year will maintain the numerical variable
 
 ```
 
@@ -147,6 +149,7 @@ labels = c("Very Poor","Poor","Fair","Below Average","Average", "Above Averager"
 
 test$OverallQual <- cut(test$OverallQual, breaks = breaks, labels = labels, include.lowest = TRUE)
 test$OverallCond <- cut(test$OverallCond, breaks = breaks, labels = labels, include.lowest = TRUE)
+
 train$OverallQual <- cut(train$OverallQual, breaks = breaks, labels = labels, include.lowest = TRUE)
 train$OverallCond <- cut(train$OverallCond, breaks = breaks, labels = labels, include.lowest = TRUE)
 
@@ -167,47 +170,108 @@ test <- test %>%
 train <- train %>%
   mutate_if(is.character, as.factor)
 
-```
+# Assumption 7.
+test$MoSold = month.name[test$MoSold]
+test$MoSold = as.factor(test$MoSold)
+train$MoSold = month.name[train$MoSold]
+train$MoSold = as.factor(train$MoSold)
 
-# PCA imputation
+summary(test)
+
+```
 
 ```{r}
-# In this section we'll Performance PCA to impute the missing data for numerical variables
-
-res.PCA = imputePCA (select(test, Numerical_val_2))   # impute numeric variables
-str (res.PCA)
-str(res.PCA$completeObs)
-test_impute = res.PCA$completeObs; summary(test_impute)
-summary(test_num)
+# Find the numerical sets and categorical sets
+train_num = select(train, Numerical_val_2); summary(train_num)
+train_cat = select(train, Categorical_val); summary(train_cat)
 ```
+
 
 # Univariate Outlier
 
 ```{r}
 # Here we'll check all the Univariate outlier, and highlight them. In the next section, we'll do it but for multiple outlier. If the record appear in both Uni&Mult outlier analysis, then we'll remove it.
-severe_out = Boxplot(test_impute)
+severe_out = Boxplot(train_num)
+# We can observe that there is quite a lot severe outliers.
 severe_out
 
-Boxplot(test_num$LotFrontage)
 ```
 
 # Multivariate outlier Analysis
 
 ```{r}
-# 
+# In the multivariate outlier, as this is stochastic, we cannot plot all the features. After several attempts, the best combination is below
 
-res.mout <- Moutlier(test_impute[,c(1,3,5,7,16,17,19,21)], quantile = 0.95)
+res.mout <- Moutlier(train_num[,c(1,3,5,7,16,17,19,21)], quantile = 0.95)
 par(mfrow = c(1,1))
 plot(res.mout$md, res.mout$rd, col="cyan", pch = 19)
 res.mout$cutoff
 abline(h=res.mout$cutoff, col="red", lwd = 2)
 abline(v=res.mout$cutoff, col="red", lwd = 2)
 
-text(res.mout$md, res.mout$rd, label = row.names(df), cex = 0.5)
+text(res.mout$md, res.mout$rd, label = row.names(train_num), cex = 1)
 
-ll <- which ((res.mout$md>res.mout$cutoff) & 
-              res.mout$rd>res.mout$cutoff); ll
+ll <- which ((res.mout$md>res.mout$cutoff) & res.mout$rd>res.mout$cutoff); ll
 
+# So we'll remove them from the test data set.
+train_clean = train_num[-ll,]
+
+```
+
+
+# PCA imputation
+
+```{r}
+# In this section we'll Performance PCA to impute the missing data for numerical variables
+
+res.PCA = imputePCA (train_clean)   # impute numeric variables
+str (res.PCA)
+str(res.PCA$completeObs)
+
+# We can observe that the missing values are imputed.
+train_impute = res.PCA$completeObs; summary(train_impute)
+```
+
+# Select 10 Categorical feature
+
+```{r}
+# Once we have the data clean and preprocesed, we'll get into the selection of the categorical feature, leaving only with 10 of then.
+
+# Because there are too much qualitative variables we need to select 10 of them. Note that qualitative variables in both datasets are the same but, according to the EDA, distributions are different. As a consequence, we expect correlations to be different as well.
+
+# To analyse which categorical variables are more relevant we performed a profiling using FactoMiner. Analysing only "train" database and using "SalePrice" as our target variable have analysed the 10 more important categorical variables to predict the price. Those are:
+
+"
+Variable      R^2         p value
+OverallQual   0.684181287 0.000000e+00
+Neighborhood  0.545574991 1.558600e-225
+ExterQual     0.477387778 1.439551e-204
+BsmtQual      0.464993778 8.158548e-196
+KitchenQual   0.456598624 3.032213e-192
+GarageFinish  0.305873737 6.228747e-115
+FireplaceQu   0.293960754 2.971217e-107
+Foundation    0.256368402  5.791895e-91
+GarageType    0.249204231  6.117026e-87
+MSSubClass    0.246315973  8.662166e-79
+"
+```
+
+
+```{r}
+# Use condes method to determinate the correlation between categorical feature and the target SalePrice.
+res.con = condes(train, 80)         
+res.con$quanti
+res.con$quali
+res.con$category
+```
+
+From those 10 variables, we can perform the same analysis but using each categorical variable
+
+```{r}
+#res.cat=catdes(train, 17) # df = columns without missings
+#res.cat$test.chi2
+#res.cat$category
+#res.cat$quanti.var; res.cat$quanti
 ```
 
 
@@ -222,51 +286,9 @@ ll <- which ((res.mout$md>res.mout$cutoff) &
 ```{r, echo=FALSE}
 # load the DataExplorer library
 # use create_report 
-create_report(train)
-create_report(test)
+# create_report(train)
+# create_report(test)
 
-```
-
-```{r}
-# Categorical feature selection
-# Once we have the data clean and preprocesed, we'll get into the selection of the categorical feature, leaving only with 10 of then.
-
-# Because there are too much qualitative variables we need to select 10 of them. Note that qualitative variables in both datasets are the same but, according to the EDA, distributions are different. As a consequence, we expect correlations to be different as well.
-
-# To analyse which categorical variables are more relevant we performed a profiling using FactoMiner. Analysing only "train" database and using "priceSold" as our target variable have analysed the 10 more important categorical variables to predict the price. Those are:
-
-"
-Variable-R^2-p value
-Neighborhood  0.545574991 1.558600e-225
-ExterQual     0.477387778 1.439551e-204
-BsmtQual      0.464993778 8.158548e-196
-KitchenQual   0.456598624 3.032213e-192
-GarageFinish  0.305873737 6.228747e-115
-FireplaceQu   0.293960754 2.971217e-107
-Foundation    0.256368402  5.791895e-91
-GarageType    0.249204231  6.117026e-87
-BsmtFinType1  0.210810410  2.386358e-71
-HeatingQC     0.195500486  2.667062e-67
-"
-```
-
-
-```{r}
-condes(train, 81)  
-
-res.con = condes(train, 81)         
-res.con$quanti
-res.con$quali
-res.con$category
-```
-
-From those 10 variables, we can perform the same analysis but using each categorical variable
-
-```{r}
-res.cat=catdes(train, 13) # df = columns without missings
-#res.cat$test.chi2
-res.cat$category
-#res.cat$quanti.var; res.cat$quanti
 ```
 
 
