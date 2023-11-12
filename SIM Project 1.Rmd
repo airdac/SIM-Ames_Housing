@@ -48,7 +48,6 @@ library(FactoMineR)
 library(chemometrics)
 library(DataExplorer)
 library(corrplot)
-
 ```
 
 **0. Pre-processing and data preparation**
@@ -291,39 +290,40 @@ train = train[-severe_outliers(train$SalePrice),]
 Boxplot(train$SalePrice)
 ```
 
-# Multivariate Outliers Analysis  !!!NOT FINISHED!!!
+# Multivariate Outliers Analysis  (Decide what to do with them)
+
+Using Moutlier detection we decided to impute the following variables:
+LotFrontage, LotArea, YearBuilt, BsmtFinSF1, Fireplaces, OpenPorchSF, YrSold
 
 ```{r}
 # In the multivariate outlier, as this is stochastic, we cannot plot all the features. After several attempts, the best combination is below
-corrplot(cor(train_num))
 id_num_val
-# Moutlier gives an error if we use all numerical variables, so we won't use highly correlated variables
-id_num_val_not_corr = c(4,5,20,35,45,57,67,68,77)
-corrplot(cor(train[,id_num_val_not_corr]))
-id_num_val_not_corr = c(20,35)
-corrplot(cor(train[,id_num_val_not_corr]))
+id_num_val_not_corr = c(4,5,20,35,57,68,77)
 
-res.mout <- Moutlier(train[,id_num_val_not_corr], quantile = 0.95)
-#par(mfrow = c(1,1))
-plot(res.mout$md, res.mout$rd, col="cyan", pch = 19)
-res.mout$cutoff
-abline(h=res.mout$cutoff, col="red", lwd = 2)
-abline(v=res.mout$cutoff, col="red", lwd = 2)
+# The analysis gives that all values from classical Mahalanobis distance
+# are NA, as a consequence it is only possible to plot robust Mahalanobis distance.
+# According to this distance there are 436 outliers (30 % of all data), however,
+# none of them is considered an outlier by the classical Mahalanobis distance.
+res.mout <- Moutlier(train[,id_num_val_not_corr], quantile = 0.95, plot = FALSE)
 
-text(res.mout$md, res.mout$rd, label = row.names(train_num), cex = 1)
+plot(res.mout$rd, col="lightblue", pch = 19, main = 'Detection of multivariable 
+outliers', xlab= 'Observation', 
+     ylab ='Robust Mahalanobis distance ')
+abline(h = res.mout$cutoff, col = "green", lwd = 5, lty = 2)
 
-ll <- which ((res.mout$md>res.mout$cutoff) & (res.mout$rd>res.mout$cutoff)); ll
-
-# So we'll remove them from the test data set.
-train_clean = train_num[-ll,]
-
+outliers = which(res.mout$rd>res.mout$cutoff)
+length(outliers)
 ```
-
 
 # PCA imputation
 
+We decided to impute all the numerical outliers detected in the previous section,
+however, this imputation is keeped as a separate database.
+
 ```{r}
 # In this section we'll Performance PCA to impute the missing data for numerical variables
+
+train_clean = train_num[-outliers,]
 
 res.PCA = imputePCA (train_clean)   # impute numeric variables
 str (res.PCA)
@@ -333,28 +333,45 @@ str(res.PCA$completeObs)
 train_impute = res.PCA$completeObs; summary(train_impute)
 ```
 
-# Select 10 Categorical feature
+To know if the imputation was successful or not
+
+LotFrontage, LotArea, YearBuilt, BsmtFinSF1, Fireplaces, OpenPorchSF, YrSold
 
 ```{r}
-# Once we have the data clean and preprocesed, we'll get into the selection of the categorical feature, leaving only with 10 of then.
+par(mfrow=c(1,2))
 
-# Because there are too many qualitative variables we need to select 10 of them. Note that qualitative variables in both datasets are the same but, according to the EDA, distributions are different. As a consequence, we expect correlations to be different as well.
+hist(train_num$LotFrontage,prob = TRUE, breaks = 20)
+hist(train_impute[1],prob = TRUE, breaks = 20)
+```
 
-# To analyse which categorical variables are most relevant we performed profiling using FactoMiner. Analysing only the "train" database and using "SalePrice" as our target variable have analysed the 10 most important categorical variables to predict the price. Those are:
+# Select 10 Categorical feature
 
-"
-Variable      R^2         p value
-OverallQual   0.684181287 0.000000e+00
-Neighborhood  0.545574991 1.558600e-225
-ExterQual     0.477387778 1.439551e-204
-BsmtQual      0.464993778 8.158548e-196
-KitchenQual   0.456598624 3.032213e-192
-GarageFinish  0.305873737 6.228747e-115
-FireplaceQu   0.293960754 2.971217e-107
-Foundation    0.256368402  5.791895e-91
-GarageType    0.249204231  6.117026e-87
-MSSubClass    0.246315973  8.662166e-79
-"
+Once we have the data clean and preprocesed, we have selected the 10 most relevant
+categories. To do that we analysed which categorical variables are most relevant 
+according to the profile of FactoMiner. 
+We analysed only the "train" database and using "SalePrice" and selected the
+categorical variables with an smaller p-value that also correspon to those
+that have a better R^2 to the target.
+
+The variables that we selected, sorted starting with the smallest p-value, are:
+OverallQual, Neighborhood, ExterQual, BsmtQual, KitchenQual, GarageFinish  
+FireplaceQu, Foundation, GarageType and MSSubClass
+
+
+```{r}
+"""
+                       R2       p.value
+OverallQual   0.679416195  0.000000e+00
+Neighborhood  0.564234743 2.584203e-236
+ExterQual     0.473325331 1.877145e-200
+BsmtQual      0.464951216 3.653937e-194
+KitchenQual   0.445077154 4.390173e-184
+GarageFinish  0.334380076 4.112106e-127
+FireplaceQu   0.312624177 1.061616e-114
+Foundation    0.280872977 1.248280e-100
+GarageType    0.278812680  1.080007e-98
+MSSubClass    0.267547214  9.455507e-87
+"""
 ```
 
 
@@ -366,30 +383,48 @@ res.con$quali
 res.con$category
 ```
 
-From those 10 variables, we can perform the same analysis but using each categorical variable
+# EDA
+An extensive EDA was done for the imputed values of "train" database, before and
+after the imputation, as well as to "test" database. Note that "train" contains 1460 observations of houses that were sold, and "test" contains 1459 different observations of houses we don't know the price of. 
 
-```{r}
-#res.cat=catdes(train, 17) # df = columns without missings
-#res.cat$test.chi2
-#res.cat$category
-#res.cat$quanti.var; res.cat$quanti
-```
+The most relevant conclusions of EDA are:
+
+1 - "Train" and "test" databases contains observations that follows a
+similar distribution for all variables, however, some categories
+have one more or less levels depending on the database (ex: KitchenAbvGr). However, the probability distribution stays the same.
+
+2 - Distribution of missing values are similar in both databases and are
+concentrated in 5 variables: PoolQC, MiscFeature, Alley (+90%), Fence (80%) , FirePlaceQu (50%).
+
+3 - Both databases are hightly unbalanced in almost all categories. This is specially 
+relevant in binary variables, where one category retains arround 99%.
+
+4 - Numerical variables have a non normal distribution according to Shapiro–Wilk 
+and Kolmogorov-Smirnov tests
+
+5 - The most correlated numerical variables, with more than 50 % of R^2 are: 
+GrLivArea, GarageCars, GarageArea, TotalBsmtSF, X1stFlrSF, YearBuilt, FullBath,
+YearRemodAdd, GarageYrBlt and TotRmsAbvGrd
+
+6 - 
 
 
-```{r}
-# Once we have set the correct type of each variable we can start analyzing the database. We can do a quick EDA on both databases using automatic tools like "DataExplorer".
 
-# Using those reports we see that databases "test" and "train" have the same variables except for "SalePrice", that can only be found in "train". In more detail, we can see that the "train" db contains 1460 observations of houses that were sold, and "test" contains 1459 different observations of houses we don't know the price of. We will work to predict the price of the latter.
-
-```
 
 
 ```{r, echo=FALSE}
 # load DataExplorer library
-# use create_report 
-# create_report(train)
-# create_report(test)
+#use create_report 
+library(DataExplorer)
 
+#create_report(train)
+create_report(train_impute)
+```
+
+
+```{r}
+ks.test(train$LotArea, y = 'pnorm')
+shapiro.test(train$LotArea)
 ```
 
 
