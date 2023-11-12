@@ -23,7 +23,7 @@ rm(list = ls())
 train = read.csv("train.csv")
 test = read.csv("test.csv")
 
-# And the combination of both dataset are:
+# And the combination of both datasets is:
 df = rbind(test, train[,-81])
 
 ```
@@ -47,7 +47,7 @@ library(missMDA)
 library(FactoMineR)
 library(chemometrics)
 library(DataExplorer)
-source("LittleMCAR function.R")
+library(corrplot)
 
 ```
 
@@ -59,15 +59,15 @@ Any data set for modelling purposes should include a first methodological step o
 summary(train)
 # And the name of each feature are below.
 str(train)
-# Analyzing all the feature will be an exhausting work. So there should be some way to reduce the dimensional. According to the statement of this project, we should retain all the numerical variable and 10 categorical variable.
+# Analyzing all features will be an exhausting work. So there should be some way to reduce the dimensions. According to the statement of the project, we should retain all numerical variables and 10 categorical variables.
 
 # The categorical variable are below
 
-Categorical_val = c('MSSubClass',"MSZoning","Street","Alley","LotShape","LandContour","Utilities","LotConfig","LandSlope","Neighborhood","Condition1","Condition2","BldgType","HouseStyle","OverallQual","OverallCond","RoofStyle","RoofMatl","Exterior1st","Exterior2nd","MasVnrType","ExterQual","ExterCond","Foundation","BsmtQual","BsmtCond","BsmtExposure","BsmtFinType1","BsmtFinType2","Heating","HeatingQC","CentralAir","Electrical","KitchenQual","Functional","FireplaceQu","GarageType","GarageFinish","GarageQual","GarageCond","PavedDrive","PoolQC","Fence","MiscFeature","SaleType","SaleCondition", "LowQualFinSF", "PoolArea")
+Categorical_val = c("MSSubClass","MSZoning","Street","Alley","LotShape","LandContour","Utilities","LotConfig","LandSlope","Neighborhood","Condition1","Condition2","BldgType","HouseStyle","OverallQual","OverallCond","RoofStyle","RoofMatl","Exterior1st","Exterior2nd","MasVnrType","ExterQual","ExterCond","Foundation","BsmtQual","BsmtCond","BsmtExposure","BsmtFinType1","BsmtFinType2","Heating","HeatingQC","CentralAir","Electrical","KitchenQual","Functional","FireplaceQu","GarageType","GarageFinish","GarageQual","GarageCond","PavedDrive","PoolQC","Fence","MiscFeature","SaleType","SaleCondition", "MoSold")
 
-# The numerical variable are
+# The numerical variables except the target are
 
-Numerical_val = c("LotFrontage","LotArea","MasVnrArea","BsmtFinSF1","BsmtFinSF2","BsmtUnfSF","TotalBsmtSF","X1stFlrSF","X2ndFlrSF","GrLivArea","BsmtFullBath","BsmtHalfBath","FullBath","HalfBath","BedroomAbvGr","KitchenAbvGr","TotRmsAbvGrd","Fireplaces","GarageCars","GarageArea","WoodDeckSF","OpenPorchSF","EnclosedPorch","X3SsnPorch","ScreenPorch","MiscVal")
+Numerical_val = c("LotFrontage","LotArea","MasVnrArea","BsmtFinSF1","BsmtFinSF2","BsmtUnfSF","TotalBsmtSF","X1stFlrSF","X2ndFlrSF","GrLivArea","BsmtFullBath","BsmtHalfBath","FullBath","HalfBath","BedroomAbvGr","KitchenAbvGr","TotRmsAbvGrd","Fireplaces","GarageCars","GarageArea","WoodDeckSF","OpenPorchSF","EnclosedPorch","X3SsnPorch","ScreenPorch","MiscVal","YearBuilt","YearRemodAdd","GarageYrBlt","YrSold")
 
 # And the date variables are
 
@@ -77,7 +77,7 @@ Date_val = c("YearBuilt","YearRemodAdd","GarageYrBlt","MoSold","YrSold")
 
 
 ```{r}
-# Some numerical variable just contain few unique values, which means can be converted into categorical. Here below we can see which of them.
+# Some numerical variables just contain a few unique values, which means they can be converted to categorical. Below we can see which of them.
 sapply(select(train, Numerical_val), table)
 sapply(select(train, Categorical_val), table)
 sapply(select(train, Date_val), table)
@@ -85,22 +85,44 @@ sapply(select(train, Date_val), table)
 ```
 
 
-```{r}
-
-
-```
-
-
 # General Assumptions
 
 ```{r}
-# Assumptions 1. The PoolArea, although it's a Numerical variable, the percentage recorded is only 7 out of 1459 observations (0,48% of all data). So we thinks maybe can be reduced to a binary variable (Having or Not a Pool)
+# Assumptions 1. PoolArea, although it's a numerical variable, the percentage recorded is less than 0.5% in train and test. So we thinks maybe can be reduced to a binary variable (Having or Not a Pool)
+length(which(train$PoolArea > 0))/dim(train)[1]*100
+length(which(test$PoolArea > 0))/dim(test)[1]*100
 
-# Assumption 2. The LowQualFinSF is referring to Surface finished but with low quality. As same as PoolArea, there is only 23 unique observation different than 0. So we can reduce it into binary variable (Having or not a low quality surface.)
+# Assumption 2. LowQualFinSF is referring to Surface finished but with low quality. As same as PoolArea, only 2% of the values in train and 1% in test are positive. So we can reduce it into a binary variable (having or not a low quality surface.)
+length(which(train$LowQualFinSF > 0))/dim(train)[1]*100
+length(which(test$LowQualFinSF > 0))/dim(test)[1]*100
 
-# Assumption 3. LotFrontage, which represents the distance from the property to the street, has a high percentage of missing values, 18% in "train" and 16% in "test". Now we should check if data is missing by random or not using the Little test. However, this test is implemented in the LittleMCAR function, which accepts data frames with at most 50 variables. Both train and test datasets are too large, so we will have to make a decision with other tools.
+#Assumtption 3. The same happens with BsmtFinSF2 with only 12% of positive values.
+length(which(train$BsmtFinSF2 > 0))/dim(train)[1]*100
+length(which(test$BsmtFinSF2 > 0))/dim(test)[1]*100
+
+# Assumption 4. LotFrontage, which represents the distance from the property to the street, has a high percentage of missing values, 18% in "train" and 16% in "test". Now we should check if data is missing by random or not using the Little test. However, this test is implemented in the LittleMCAR function, which accepts data frames with at most 50 variables. Both train and test datasets are too large, so we will have to make a decision with other tools.
 
 # A quick look at the summary of LotFrontage in both datasets shows there isn't any house with a value of 0 for this variable. However, in the real world there exist houses whose entrance is right next to the street, with no separation from it. Hence, we deduce that missing values correspond to a distance of 0 and we impute LotFrontage like so.
+
+# Assumption 5. BsmtHalfBath is numerical but it can only be 0, 1 or 2. Moreover, only 6% of values are positive, so we'll transform it to a categorical.
+length(which(train$BsmtHalfBath > 0))/dim(train)[1]*100
+length(which(test$BsmtHalfBath > 0))/dim(test)[1]*100
+
+# Assumption 6. Similarly, KitchenAbvGr can only be 0, 1, 2 or 3 and only 5% is different than 1.
+length(which(train$KitchenAbvGr != 1))/dim(train)[1]*100
+length(which(test$KitchenAbvGr != 1))/dim(test)[1]*100
+
+# Assumption 7. Most values of EnclosedPorch, X3SsnPorch, ScreenPorch are 0. Below we can see the percentage of each variable in train and test. Hence, we will transform them to a binary variable that tells whether the dwelling has a porch of the corresponding kind.
+length(which(train$EnclosedPorch > 0))/dim(train)[1]*100
+length(which(test$EnclosedPorch > 0))/dim(test)[1]*100
+length(which(train$X3SsnPorch > 0))/dim(train)[1]*100
+length(which(test$X3SsnPorch > 0))/dim(test)[1]*100
+length(which(train$ScreenPorch > 0))/dim(train)[1]*100
+length(which(test$ScreenPorch > 0))/dim(test)[1]*100
+
+# Assumption 8. MiscVal has only a 4% of values different to 0. However, converting it to binary would be redundant, because wether a dwelling has a miscellaneous feature or not can already be studied with the MiscFeature categorical variable. Hence, we have decided to remove this variable from both train and test, storing its values in a new R variable in case we need it for further study.
+length(which(train$MiscVal > 0))/dim(train)[1]*100
+length(which(test$MiscVal > 0))/dim(test)[1]*100
 
 # Assumption 4. The MSSubClass, OverallQual and OverallCond, although are categorical variables, they are presented as integer. So we need to transform it into factor.
 
@@ -110,6 +132,7 @@ sapply(select(train, Date_val), table)
 
 # Assumption 7. Month will be transformed into factor and renamed to abbreviated names, while other dates as year will remain numerical.
 
+# Note that the numerical variables we have converted to categorical were exactly those whose IQR was 0, since finding their univariate outliers would have been very complicated.
 ```
 
 # Data transformation
@@ -133,6 +156,14 @@ train <- train %>%
 train$LowQualFinSF = as.factor(train$LowQualFinSF)
 
 # Assumption 3
+test <- test %>%
+  mutate(BsmtFinSF2 = ifelse(BsmtFinSF2 > 0, "Yes", "No"))
+test$BsmtFinSF2 = as.factor(test$BsmtFinSF2)
+train <- train %>%
+  mutate(BsmtFinSF2 = ifelse(BsmtFinSF2 > 0, "Yes", "No"))
+train$BsmtFinSF2 = as.factor(train$BsmtFinSF2)
+
+# Assumption 4
 
 percent_miss <- function(data) {
   return (length(which(is.na(data)))/length(data)*100)
@@ -148,16 +179,42 @@ lltest <- which(is.na(test$LotFrontage))
 train$LotFrontage[lltrain] <- 0
 test$LotFrontage[lltest] <- 0
 
+# Assumption 5
+train$BsmtHalfBath <- as.factor(train$BsmtHalfBath)
+test$BsmtHalfBath <- as.factor(test$BsmtHalfBath)
+
+# Assumption 6
+train$KitchenAbvGr <- as.factor(train$KitchenAbvGr)
+test$KitchenAbvGr <- as.factor(test$KitchenAbvGr)
+levels(test$KitchenAbvGr) = c(levels(test$KitchenAbvGr),"3")
+
+# Assumption 7
+test <- test %>%
+  mutate(EnclosedPorch = ifelse(EnclosedPorch > 0, "Yes", "No"))
+test$EnclosedPorch = as.factor(test$EnclosedPorch)
+train <- train %>%
+  mutate(EnclosedPorch = ifelse(EnclosedPorch > 0, "Yes", "No"))
+train$EnclosedPorch = as.factor(train$EnclosedPorch)
+test <- test %>%
+  mutate(X3SsnPorch = ifelse(X3SsnPorch > 0, "Yes", "No"))
+test$X3SsnPorch = as.factor(test$X3SsnPorch)
+train <- train %>%
+  mutate(X3SsnPorch = ifelse(X3SsnPorch > 0, "Yes", "No"))
+train$X3SsnPorch = as.factor(train$X3SsnPorch)
+test <- test %>%
+  mutate(ScreenPorch = ifelse(ScreenPorch > 0, "Yes", "No"))
+test$ScreenPorch = as.factor(test$ScreenPorch)
+train <- train %>%
+  mutate(ScreenPorch = ifelse(ScreenPorch > 0, "Yes", "No"))
+train$ScreenPorch = as.factor(train$ScreenPorch)
+
+# Assumption 8
+miscVal_train <- train$MiscVal
+miscVal_test <- test$MiscVal
+train$MiscVal <- NULL
+test$MiscVal <- NULL
+
 # Assumption 4
-#breaks = c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
-#labels = c("Very Poor","Poor","Fair","Below Average","Average", "Above Average", "Good", "Very Good", "Excellent", "Very Excellent")
-
-
-#test$OverallQual <- cut(test$OverallQual, breaks = breaks, labels = labels, include.lowest = TRUE)
-#test$OverallCond <- cut(test$OverallCond, breaks = breaks, labels = labels, include.lowest = TRUE)
-
-#train$OverallQual <- cut(train$OverallQual, breaks = breaks, labels = labels, include.lowest = TRUE)
-#train$OverallCond <- cut(train$OverallCond, breaks = breaks, labels = labels, include.lowest = TRUE)
 
 test$MSSubClass = as.factor(test$MSSubClass)
 test$OverallQual = as.factor(test$OverallQual)
@@ -187,8 +244,21 @@ summary(test)
 ```
 
 ```{r}
-# Find numerical variables
-train_num = select(train, Numerical_val_2); summary(train_num)
+# Find numerical, categorical and date variables
+id_num_val = which(sapply(test, is.numeric)==TRUE)
+# We won't analyze the id variable
+id_num_val = as.numeric(id_num_val)[-1]; id_num_val
+id_cat_val = which(sapply(test, is.factor)==TRUE)
+id_cat_val = as.numeric(id_cat_val); id_cat_val
+id_date_val = c(20,21,60,77,78)
+# Now, the categorical variable are below
+
+Categorical_val = c("MSSubClass","MSZoning","Street","Alley","LotShape","LandContour","Utilities","LotConfig","LandSlope","Neighborhood","Condition1","Condition2","BldgType","HouseStyle","OverallQual","OverallCond","RoofStyle","RoofMatl","Exterior1st","Exterior2nd","MasVnrType","ExterQual","ExterCond","Foundation","BsmtQual","BsmtCond","BsmtExposure","BsmtFinType1","BsmtFinType2","BsmtFinSF2","Heating","HeatingQC","CentralAir","Electrical","LowQualFinSF","BsmtHalfBath","KitchenAbvGr","KitchenQual","Functional","FireplaceQu","GarageType","GarageFinish","GarageQual","GarageCond","PavedDrive","EnclosedPorch","X3SsnPorch","ScreenPorch","PoolArea","PoolQC","Fence","MiscFeature","SaleType","SaleCondition","MoSold")
+
+# The numerical variables except the target are
+
+Numerical_val = c("LotFrontage","LotArea","YearBuilt","YearRemodAdd","MasVnrArea","BsmtFinSF1","BsmtUnfSF","TotalBsmtSF","X1stFlrSF","X2ndFlrSF","GrLivArea","BsmtFullBath","FullBath","HalfBath","BedroomAbvGr","TotRmsAbvGrd","Fireplaces","GarageYrBlt","GarageCars","GarageArea","WoodDeckSF","OpenPorchSF","YrSold")
+train_num = select(train, Numerical_val); summary(train_num)
 train_cat = select(train, Categorical_val); summary(train_cat)
 ```
 
@@ -197,18 +267,43 @@ train_cat = select(train, Categorical_val); summary(train_cat)
 
 ```{r}
 # Here we'll check all the Univariate outliers, and highlight them. In the next section, we'll do it but for multiple outliers. If a record appears in Uni or Mult outlier analysis, then we'll remove it.
-severe_out = Boxplot(train_num)
-# We have to check better these outliers
-severe_out
+severe_out = Boxplot(train_num); severe_out
+# There are 26 numerical variables, so we will automatize this step by erasing all severe univariate outliers and setting them to NA. After validating the results, we will imputate them with the rest of missing values. There will be one exception, SalePrice. Since it is the target, we can't impute it, so we will remove the whole records with severe outliers instead.
 
+severe_outliers <- function(data) {
+  ss <- summary(data)
+  # Upper/lower severe thresholds
+  utso <- as.numeric(ss[5]+3*(ss[5]-ss[2]))
+  ltso <- as.numeric(ss[2]-3*(ss[5]-ss[2]))
+  
+  return (which((data>utso)|(data<ltso)))
+}
+
+par(mfrow=c(1,2))
+for (var in id_num_val) {
+  train[severe_outliers(train[,var]),var] <- NA
+  Boxplot(train[,var], ylab = var, main = "Train")
+  test[severe_outliers(test[,var]),var] <- NA
+  Boxplot(test[,var], ylab = var, main = "Test")
+}
+par(mfrow=c(1,1))
+train = train[-severe_outliers(train$SalePrice),]
+Boxplot(train$SalePrice)
 ```
 
-# Multivariate Outliers Analysis
+# Multivariate Outliers Analysis  !!!NOT FINISHED!!!
 
 ```{r}
 # In the multivariate outlier, as this is stochastic, we cannot plot all the features. After several attempts, the best combination is below
+corrplot(cor(train_num))
+id_num_val
+# Moutlier gives an error if we use all numerical variables, so we won't use highly correlated variables
+id_num_val_not_corr = c(4,5,20,35,45,57,67,68,77)
+corrplot(cor(train[,id_num_val_not_corr]))
+id_num_val_not_corr = c(20,35)
+corrplot(cor(train[,id_num_val_not_corr]))
 
-res.mout <- Moutlier(train_num[,c(1,3,5,7,16,17,19,21)], quantile = 0.95)
+res.mout <- Moutlier(train[,id_num_val_not_corr], quantile = 0.95)
 #par(mfrow = c(1,1))
 plot(res.mout$md, res.mout$rd, col="cyan", pch = 19)
 res.mout$cutoff
@@ -264,7 +359,7 @@ MSSubClass    0.246315973  8.662166e-79
 
 
 ```{r}
-# Use condes method to determinate the correlation between categorical feature and the target SalePrice.
+# Use condes() method to determine the correlation between categorical feature and the target SalePrice.
 res.con = condes(train, 80)         
 res.con$quanti
 res.con$quali
