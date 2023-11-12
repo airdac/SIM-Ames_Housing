@@ -69,9 +69,7 @@ Categorical_val = c('MSSubClass',"MSZoning","Street","Alley","LotShape","LandCon
 
 Numerical_val = c("LotFrontage","LotArea","MasVnrArea","BsmtFinSF1","BsmtFinSF2","BsmtUnfSF","TotalBsmtSF","X1stFlrSF","X2ndFlrSF","GrLivArea","BsmtFullBath","BsmtHalfBath","FullBath","HalfBath","BedroomAbvGr","KitchenAbvGr","TotRmsAbvGrd","Fireplaces","GarageCars","GarageArea","WoodDeckSF","OpenPorchSF","EnclosedPorch","X3SsnPorch","ScreenPorch","MiscVal")
 
-Numerical_val_2 = c("LotArea","MasVnrArea","BsmtFinSF1","BsmtFinSF2","BsmtUnfSF","TotalBsmtSF","X1stFlrSF","X2ndFlrSF","GrLivArea","BsmtFullBath","BsmtHalfBath","FullBath","HalfBath","BedroomAbvGr","KitchenAbvGr","TotRmsAbvGrd","Fireplaces","GarageCars","GarageArea","WoodDeckSF","OpenPorchSF","EnclosedPorch","X3SsnPorch","ScreenPorch","MiscVal")
-
-# And the date variable are
+# And the date variables are
 
 Date_val = c("YearBuilt","YearRemodAdd","GarageYrBlt","MoSold","YrSold")
 
@@ -88,12 +86,7 @@ sapply(select(train, Date_val), table)
 
 
 ```{r}
-# The LotFrontage has a percentage of missing quite high, 17.75% (259/1459). And it's the measure of distance from the property to the street. We'll need to check if it's missing by random or not, and decide to keep it or remove it.
-# For this purpose, we'll use the Little test to validade if it's a MCAR, MAR or MNA.
 
-# little.test <- LittleMCAR(train)
-
-# NO ES POT FER SERVIR LITTLE TEST PERQUE ELS VARIABLES HA SUPERAT ELS 50.
 
 ```
 
@@ -105,16 +98,17 @@ sapply(select(train, Date_val), table)
 
 # Assumption 2. The LowQualFinSF is referring to Surface finished but with low quality. As same as PoolArea, there is only 23 unique observation different than 0. So we can reduce it into binary variable (Having or not a low quality surface.)
 
-# Assumption 3. The LotFrontage has a percentage of missing quite high, 17.75% (259/1459). And it's the measure of distance from the property to the street. Using condes function, we can see that the relation between it and the target is 0.3518, with P-value 2,6*10^-36. We can consider to remove it.
+# Assumption 3. LotFrontage, which represents the distance from the property to the street, has a high percentage of missing values, 18% in "train" and 16% in "test". Now we should check if data is missing by random or not using the Little test. However, this test is implemented in the LittleMCAR function, which accepts data frames with at most 50 variables. Both train and test datasets are too large, so we will have to make a decision with other tools.
+
+# A quick look at the summary of LotFrontage in both datasets shows there isn't any house with a value of 0 for this variable. However, in the real world there exist houses whose entrance is right next to the street, with no separation from it. Hence, we deduce that missing values correspond to a distance of 0 and we impute LotFrontage like so.
 
 # Assumption 4. The MSSubClass, OverallQual and OverallCond, although are categorical variables, they are presented as integer. So we need to transform it into factor.
-#               For the OverallQual and OverallCond variable, their level are scaled from 1 to 10. Instead of that, we'll like to switch to categorical (Very pool to very Excelent)
 
-# Assumption 5. Checking the categorical set, we found that "Exterior2nd" has a record of "Brk Cmn", which does not match with the data description "BrkComm". So we rename it (in order to match with "Exterior1st")
+# Assumption 5. Checking the set of categories, we found that "Exterior2nd" has a record of "Brk Cmn", which does not match with the data description "BrkComm". So we rename it (in order to match with "Exterior1st")
 
-# Assumption 6. For all those categorical variable that we find previously, we'll transform it into Factor.
+# Assumption 6. We'll transform all the categorical variables we found previously into Factor.
 
-# Assumption 7. The month will be transformed into factor and renamed to abbreviated names.While other date as year will maintain the numerical variable
+# Assumption 7. Month will be transformed into factor and renamed to abbreviated names, while other dates as year will remain numerical.
 
 ```
 
@@ -140,18 +134,30 @@ train$LowQualFinSF = as.factor(train$LowQualFinSF)
 
 # Assumption 3
 
-test <- subset(test, select = -LotFrontage)
-train <- subset(train, select = -LotFrontage)
+percent_miss <- function(data) {
+  return (length(which(is.na(data)))/length(data)*100)
+}
+percent_miss(train$LotFrontage)
+percent_miss(test$LotFrontage)
+
+summary(train$LotFrontage)
+summary(test$LotFrontage)
+
+lltrain <- which(is.na(train$LotFrontage))
+lltest <- which(is.na(test$LotFrontage))
+train$LotFrontage[lltrain] <- 0
+test$LotFrontage[lltest] <- 0
 
 # Assumption 4
-breaks = c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
-labels = c("Very Poor","Poor","Fair","Below Average","Average", "Above Averager", "Good", "Very Good", "Excellent", "Very Excellent")
+#breaks = c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+#labels = c("Very Poor","Poor","Fair","Below Average","Average", "Above Average", "Good", "Very Good", "Excellent", "Very Excellent")
 
-test$OverallQual <- cut(test$OverallQual, breaks = breaks, labels = labels, include.lowest = TRUE)
-test$OverallCond <- cut(test$OverallCond, breaks = breaks, labels = labels, include.lowest = TRUE)
 
-train$OverallQual <- cut(train$OverallQual, breaks = breaks, labels = labels, include.lowest = TRUE)
-train$OverallCond <- cut(train$OverallCond, breaks = breaks, labels = labels, include.lowest = TRUE)
+#test$OverallQual <- cut(test$OverallQual, breaks = breaks, labels = labels, include.lowest = TRUE)
+#test$OverallCond <- cut(test$OverallCond, breaks = breaks, labels = labels, include.lowest = TRUE)
+
+#train$OverallQual <- cut(train$OverallQual, breaks = breaks, labels = labels, include.lowest = TRUE)
+#train$OverallCond <- cut(train$OverallCond, breaks = breaks, labels = labels, include.lowest = TRUE)
 
 test$MSSubClass = as.factor(test$MSSubClass)
 test$OverallQual = as.factor(test$OverallQual)
@@ -181,29 +187,29 @@ summary(test)
 ```
 
 ```{r}
-# Find the numerical sets and categorical sets
+# Find numerical variables
 train_num = select(train, Numerical_val_2); summary(train_num)
 train_cat = select(train, Categorical_val); summary(train_cat)
 ```
 
 
-# Univariate Outlier
+# Univariate Outliers
 
 ```{r}
-# Here we'll check all the Univariate outlier, and highlight them. In the next section, we'll do it but for multiple outlier. If the record appear in both Uni&Mult outlier analysis, then we'll remove it.
+# Here we'll check all the Univariate outliers, and highlight them. In the next section, we'll do it but for multiple outliers. If a record appears in Uni or Mult outlier analysis, then we'll remove it.
 severe_out = Boxplot(train_num)
-# We can observe that there is quite a lot severe outliers.
+# We have to check better these outliers
 severe_out
 
 ```
 
-# Multivariate outlier Analysis
+# Multivariate Outliers Analysis
 
 ```{r}
 # In the multivariate outlier, as this is stochastic, we cannot plot all the features. After several attempts, the best combination is below
 
 res.mout <- Moutlier(train_num[,c(1,3,5,7,16,17,19,21)], quantile = 0.95)
-par(mfrow = c(1,1))
+#par(mfrow = c(1,1))
 plot(res.mout$md, res.mout$rd, col="cyan", pch = 19)
 res.mout$cutoff
 abline(h=res.mout$cutoff, col="red", lwd = 2)
@@ -211,7 +217,7 @@ abline(v=res.mout$cutoff, col="red", lwd = 2)
 
 text(res.mout$md, res.mout$rd, label = row.names(train_num), cex = 1)
 
-ll <- which ((res.mout$md>res.mout$cutoff) & res.mout$rd>res.mout$cutoff); ll
+ll <- which ((res.mout$md>res.mout$cutoff) & (res.mout$rd>res.mout$cutoff)); ll
 
 # So we'll remove them from the test data set.
 train_clean = train_num[-ll,]
@@ -237,9 +243,9 @@ train_impute = res.PCA$completeObs; summary(train_impute)
 ```{r}
 # Once we have the data clean and preprocesed, we'll get into the selection of the categorical feature, leaving only with 10 of then.
 
-# Because there are too much qualitative variables we need to select 10 of them. Note that qualitative variables in both datasets are the same but, according to the EDA, distributions are different. As a consequence, we expect correlations to be different as well.
+# Because there are too many qualitative variables we need to select 10 of them. Note that qualitative variables in both datasets are the same but, according to the EDA, distributions are different. As a consequence, we expect correlations to be different as well.
 
-# To analyse which categorical variables are more relevant we performed a profiling using FactoMiner. Analysing only "train" database and using "SalePrice" as our target variable have analysed the 10 more important categorical variables to predict the price. Those are:
+# To analyse which categorical variables are most relevant we performed profiling using FactoMiner. Analysing only the "train" database and using "SalePrice" as our target variable have analysed the 10 most important categorical variables to predict the price. Those are:
 
 "
 Variable      R^2         p value
@@ -276,15 +282,15 @@ From those 10 variables, we can perform the same analysis but using each categor
 
 
 ```{r}
-# When we have set the correct type of each variable we can start to analyse the database. We can do a quick EDA on both databases using automatic tools like "DataExplorer".
+# Once we have set the correct type of each variable we can start analyzing the database. We can do a quick EDA on both databases using automatic tools like "DataExplorer".
 
-# Using those reports we see that databases "test" and "train" have the same variable (80) except for "SalePrice", that can only be found in "train". In more detail, we can see that "train" db contains the firsts 1460 observations, of houses that were sold, and "test" contains the next 1459 observations of houses in which we don't know the price that were sold. We will work to predict the price of those houses.
+# Using those reports we see that databases "test" and "train" have the same variables except for "SalePrice", that can only be found in "train". In more detail, we can see that the "train" db contains 1460 observations of houses that were sold, and "test" contains 1459 different observations of houses we don't know the price of. We will work to predict the price of the latter.
 
 ```
 
 
 ```{r, echo=FALSE}
-# load the DataExplorer library
+# load DataExplorer library
 # use create_report 
 # create_report(train)
 # create_report(test)
