@@ -333,11 +333,13 @@ str(res.PCA$completeObs)
 train_impute = res.PCA$completeObs; summary(train_impute)
 ```
 
-To know if the imputation was successful or not
+To know if the imputation was successful or not...
 
-LotFrontage, LotArea, YearBuilt, BsmtFinSF1, Fireplaces, OpenPorchSF, YrSold
 
+TO DO...
 ```{r}
+# Check for LotFrontage, LotArea, YearBuilt, BsmtFinSF1, Fireplaces, OpenPorchSF, YrSold
+
 par(mfrow=c(1,2))
 
 hist(train_num$LotFrontage,prob = TRUE, breaks = 20)
@@ -361,7 +363,7 @@ FireplaceQu, Foundation, GarageType and MSSubClass
 ```{r}
 """
                        R2       p.value
-OverallQual   0.679416195  0.000000e+00
+OverallQual   0.679416195  0.000000e+00 
 Neighborhood  0.564234743 2.584203e-236
 ExterQual     0.473325331 1.877145e-200
 BsmtQual      0.464951216 3.653937e-194
@@ -385,32 +387,27 @@ res.con$category
 
 # EDA
 An extensive EDA was done for the imputed values of "train" database, before and
-after the imputation, as well as to "test" database. Note that "train" contains 1460 observations of houses that were sold, and "test" contains 1459 different observations of houses we don't know the price of. 
+after the imputation, as well as to "test" database. Note that "train" contains 1460 observations of houses that were sold, and "test" contains 1459 different observations of houses without a sell price. 
 
-The most relevant conclusions of EDA are:
+In this context the most relevant conclusions of EDA, considering all numerical values and
+the selected categorical variables, are: 
 
 1 - "Train" and "test" databases contains observations that follows a
-similar distribution for all variables, however, some categories
-have one more or less levels depending on the database (ex: KitchenAbvGr). However, the probability distribution stays the same.
+similar distribution for all variables, numerical and categorical. 
 
 2 - Distribution of missing values are similar in both databases and are
-concentrated in 5 variables: PoolQC, MiscFeature, Alley (+90%), Fence (80%) , FirePlaceQu (50%).
+concentrated in 5 variables: PoolQC, MiscFeature, Alley (+90%), 
+Fence (80%) , FirePlaceQu (50%). None of them correspon to the 10 selected
+categorical variables.
 
-3 - Both databases are hightly unbalanced in almost all categories. This is specially 
-relevant in binary variables, where one category retains arround 99%.
+3 - Both databases are highly unbalanced in almost all categories. 
+This is specially relevant in variables like "ExterQual" or "Foundation", where only 2 out of 6 categories retains 86% of the accumulative probability.
 
-4 - Numerical variables have a non normal distribution according to Shapiro–Wilk 
-and Kolmogorov-Smirnov tests
+4 - 'Neighborhood' has 25 levels, all of them contains similar number of observations 
+(from 0.13 to 5%).
 
-5 - The most correlated numerical variables, with more than 50 % of R^2 are: 
-GrLivArea, GarageCars, GarageArea, TotalBsmtSF, X1stFlrSF, YearBuilt, FullBath,
-YearRemodAdd, GarageYrBlt and TotRmsAbvGrd
-
-6 - 
-
-
-
-
+5 - Numerical variables have a non normal distribution according to Shapiro–Wilk 
+and Kolmogorov-Smirnov tests. This is specially relevant for the target variable.
 
 ```{r, echo=FALSE}
 # load DataExplorer library
@@ -418,42 +415,77 @@ YearRemodAdd, GarageYrBlt and TotRmsAbvGrd
 library(DataExplorer)
 
 #create_report(train)
-create_report(train_impute)
+#create_report(train_impute)
+
+library(SmartEDA)
+
+ExpReport(train, op_file = 'train_before_imputation_SMARTEDA.html')
+ExpReport(test, op_file = 'test_before_imputation_SMARTEDA.html')
+ExpReport(train_impute, op_file = 'train_before_imputation_SMARTEDA.html')
 ```
 
 
 ```{r}
+# Analysis of Neighborhood
+summary(train$Neighborhood)
+
+# % of all levels
+a = 100* table(train$Neighborhood) / length(train$Neighborhood)
+
+plot(train$Neighborhood)
+count = c(17, 2, 16, 58, 28, 150, 51, 100, 79, 37, 17, 49, 225,
+                37, 9, 73, 73, 112, 74, 59, 86, 22, 25, 38, 11)
+lbls = levels(train$Neighborhood)
+
+pie(count,labels = lbls, col=rainbow(length(lbls)),
+   main="Summary of Neighborhood")
+```
+
+```{r}
+# Tests for normality (done in all numerical variables)
 ks.test(train$LotArea, y = 'pnorm')
 shapiro.test(train$LotArea)
 ```
 
-
-**3. Determine if the response variable (charges) has an acceptably normal distribution.**
-
-```{r}
-
-```
-
-
-**4. Address tests to discard serial correlation.**
+# Analysis of correlation
+Using the basic profiling of Factominer we discover that the most correlated numerical variables with the target, with more than 50 % of R^2 are: GrLivArea, GarageCars, GarageArea, TotalBsmtSF, X1stFlrSF, YearBuilt, FullBath, YearRemodAdd, GarageYrBlt and TotRmsAbvGrd.
 
 ```{r}
-
+res.con = condes(train, 80)         
+res.con$quanti
 ```
 
+As variables are not normally distributed, created the correlation matrix of all numerical variables using spearman. The result is ploted in a correlation plot,
+where we performed a cluster analysis to sort the variables, so that variables that are more correlated are placed closer to each other. Additionally, we decided to create 5 clusters, as we do not expect to work with a model with more than 5 numerical variables. Also, note that in this plot the target variable is not included as this analysis was already done.
 
-**5. Detect univariant and multivariant outliers, errors and missing values (if any) and apply an imputation technique if needed.**
+The interpretation of this plot suggest that positive correlations are more common than negative, where the most important is between BsmtFullBath and BsmtFin with BsmtUnfSF. Also, there are some important positve correlarions that must be considered when making the model, for example, GarageArea is hightly correlated with GarageCars, so both variables should not be included in the same model.
+
 
 ```{r}
+# Analysis of correlations. We use spearman because there is not normality
+library(corrplot)
+library(magrittr)
 
+corr_mat = cor(train_num, method = 'spearman', use = "complete.obs")
+
+#corrplot(corr_mat, method = 'color', order = 'alphabet')
+
+corrplot(corr_mat, order = 'hclust', addrect = 5)
+
+# Code to make clusters using the name of variables
+#corrplot(corr_mat, order = 'AOE') %>%
+#  corrRect(name = c(
+#    'GrLivArea', 'GarageCars', 'GarageArea', 'TotalBsmtSF', 'X1stFlrSF', #'YearBuilt', 'FullBath', 'YearRemodAdd', 'GarageYrBlt', 'TotRmsAbvGrd'))
 ```
+
+**DONE 3. Determine if the response variable (charges) has an acceptably normal distribution.**
+
+**DONE 4. Address tests to discard serial correlation.**
+
+**DONE 5. Detect univariant and multivariant outliers, errors and missing values (if any) and apply an imputation technique if needed.**
 
 
 **6. Preliminary exploratory analysis to describe observed relations has to be undertaken.**
-
-```{r}
-
-```
 
 
 **7. If you can improve linear relations or limit the effect of influential data, you must consider suitable transformations for variables.**
