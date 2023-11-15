@@ -50,8 +50,8 @@ library(DataExplorer)
 library(corrplot)
 library(DataExplorer)
 
-create_report(train, output_format = "pdf_document", output_file = "train.pdf")
-create_report(test, output_format = "pdf_document", output_file = "test.pdf")
+#create_report(train, output_format = "pdf_document", output_file = "train.pdf")
+#create_report(test, output_format = "pdf_document", output_file = "test.pdf")
 ```
 
 **0. Pre-processing and data preparation**
@@ -392,6 +392,8 @@ str(res.PCA$completeObs)
 
 # We can observe that the missing values are imputed.
 train_impute = data.frame(res.PCA$completeObs)
+train_impute$SalePrice <- train$SaleP
+
 ```
 
 ```{r}
@@ -527,10 +529,7 @@ the selected categorical variables, are:
 1 - "Train" and "test" databases contains observations that follows a
 similar distribution for all variables, numerical and categorical. 
 
-2 - Distribution of missing values are similar in both databases and are
-concentrated in 5 variables: PoolQC, MiscFeature, Alley (+90%), 
-Fence (80%) , FirePlaceQu (50%). None of them correspon to the 10 selected
-categorical variables.
+2 - There are no missing values for numerical variables, as we decided to impute them. For the categorical, we created a new level that contains the missings for each variable. 
 
 3 - Both databases are highly unbalanced in almost all categories. 
 This is specially relevant in variables like "ExterQual" or "Foundation", where only 2 out of 6 categories retains 86% of the accumulative probability.
@@ -543,8 +542,8 @@ and Kolmogorov-Smirnov tests. This is specially relevant for the target variable
 
 ```{r, echo=FALSE}
 
-create_report(train_impute, output_format = "pdf_document", output_file = "train_imputed.pdf")
-create_report(test_impute, output_format = "pdf_document", output_file = "test_imputed.pdf")
+#create_report(train_impute, output_format = "pdf_document", output_file = "train_imputed.pdf")
+#create_report(test_impute, output_format = "pdf_document", output_file = "test_imputed.pdf")
 
 #library(SmartEDA)
 
@@ -607,6 +606,26 @@ corrplot(corr_mat, order = 'hclust', addrect = 5)
 #    'GrLivArea', 'GarageCars', 'GarageArea', 'TotalBsmtSF', 'X1stFlrSF', #'YearBuilt', 'FullBath', 'YearRemodAdd', 'GarageYrBlt', 'TotRmsAbvGrd'))
 ```
 
+Here we select the variables we will use to discover the model
+```{r}
+#Cat_var <- c("OverallQual", "Neighborhood", "ExterQual", "BsmtQual", "KitchenQual", "GarageFinish", "FireplaceQu", "Foundation", "GarageType", "MSSubClass")
+
+train_impute$OverallQual <- train$OverallQual
+train_impute$Neighborhood <- train$Neighborhood
+train_impute$ExterQual <- train$ExterQual
+train_impute$BsmtQual <- train$BsmtQual
+train_impute$KitchenQual <- train$KitchenQual
+train_impute$GarageFinish <- train$GarageFinish
+train_impute$FireplaceQu <- train$FireplaceQu
+train_impute$Foundation <- train$Foundation
+train_impute$GarageType <- train$GarageType
+train_impute$MSSubClass <- train$MSSubClass
+train_impute$YrSold <- NULL
+
+write.csv(train_impute, file='train_impute.csv', row.names = FALSE)
+```
+
+
 **DONE 3. Determine if the response variable (charges) has an acceptably normal distribution.**
 
 **DONE 4. Address tests to discard serial correlation.**
@@ -620,6 +639,7 @@ corrplot(corr_mat, order = 'hclust', addrect = 5)
 **7. If you can improve linear relations or limit the effect of influential data, you must consider suitable transformations for variables.**
 
 ```{r}
+
 
 ```
 

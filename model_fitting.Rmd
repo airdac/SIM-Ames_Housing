@@ -1,0 +1,43 @@
+---
+title: "Model Fitting SIM project 1"
+author: "Adrià Casanova Lloveras"
+date: "2023-11-15"
+output: 
+  pdf_document: 
+    toc: true
+    toc_depth: 3
+    number_sections: true
+editor_options: 
+  chunk_output_type: console
+---
+
+
+```{r}
+# Clean workspace
+if(!is.null(dev.list())) dev.off()
+rm(list = ls())
+```
+
+
+```{r}
+# Load data
+df = read.csv("train_impute.csv")
+
+# Declare factors
+df$OverallQual <- as.factor(df$OverallQual)
+df$MSSubClass <- as.factor(df$MSSubClass)
+char_var <- which(sapply(df, is.character))
+df[,char_var] <- lapply(df[, char_var], as.factor)
+```
+
+
+# Create first model with all variables
+
+```{r}
+df_num <- df[, which(sapply(df, is.numeric))]
+m0 = lm(SalePrice ~ ., data=df_num)
+
+summary(m0)
+```
+
+Note: try to transform the target variable if there are strange distributions of residues
