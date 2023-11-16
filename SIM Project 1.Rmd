@@ -28,14 +28,6 @@ df = rbind(test, train[,-81])
 
 ```
 
-Done - Removing duplicate or irrelevant observations
-Done - Fix structural errors (usually coding errors, trailing blanks in labels, lower/upper case consistency, etc.).
-Done - Check data types. Dates should be coded as such and factors should have level names (if possible, levels have to be set and clarify the variable they belong to). This point is sometimes included under data transformation process. New derived variables are to be produced sometimes scaling and/or normalization (range/shape changes to numeric variables) or category regrouping for factors (nominal/ordinal).
-Done - Filter unwanted outliers. Univariate and multivariate outliers have to be highlighted. Remove register/erase values and set NA for univariate outiers.
-In process - Handle missing data: figure out why the data is missing. Data imputation is to be considered when the aim is modelling (imputation has to be validated).
-
-
-- Data validation is mixed of ‘common sense and sector knowledge’: Does the data make sense? Does the data follow the appropriate rules for its field? Does it prove or disprove the working theory, or bring any insight to light? Can you find trends in the data to help you form a new theory? If not, is that because of a data quality issue?
 
 ```{r}
 # Import the necessary libraries and do a first EDA
@@ -50,6 +42,7 @@ library(DataExplorer)
 library(corrplot)
 library(DataExplorer)
 
+# Create EDA report before any changes are made.
 #create_report(train, output_format = "pdf_document", output_file = "train.pdf")
 #create_report(test, output_format = "pdf_document", output_file = "test.pdf")
 ```
@@ -80,7 +73,7 @@ Date_val = c("YearBuilt","YearRemodAdd","GarageYrBlt","MoSold","YrSold")
 
 
 ```{r}
-# Some numerical variables just contain a few unique values, which means they can be converted to categorical. Below we can see which of them.
+# Some numerical variables just contain a few unique values, which means they can be converted to categorical. Below we can see which of them are.
 sapply(select(train, Numerical_val), table)
 sapply(select(train, Categorical_val), table)
 sapply(select(train, Date_val), table)
@@ -394,6 +387,7 @@ str(res.PCA$completeObs)
 train_impute = data.frame(res.PCA$completeObs)
 train_impute$SalePrice <- train$SaleP
 
+
 ```
 
 ```{r}
@@ -409,6 +403,11 @@ d = data.frame(A = train[,id_num_val][x], B = train_impute[,x])
 b = boxplot(d, names=label, main = names(train[,id_num_val][x]));
 b
 }
+
+# While checking the variables, we found that for OpenPorchSF feature, there is a negative record. As this is the square feet for open porch area, and it cannot be negative. We suspect that it could be 0, and transformed it.
+
+train_impute[which(train_impute$OpenPorchSF < 0),"OpenPorchSF"] = 0
+
 ```
 
 Now we do the same for the test dataset
@@ -624,78 +623,3 @@ train_impute$YrSold <- NULL
 
 write.csv(train_impute, file='train_impute.csv', row.names = FALSE)
 ```
-
-
-**DONE 3. Determine if the response variable (charges) has an acceptably normal distribution.**
-
-**DONE 4. Address tests to discard serial correlation.**
-
-**DONE 5. Detect univariant and multivariant outliers, errors and missing values (if any) and apply an imputation technique if needed.**
-
-
-**6. Preliminary exploratory analysis to describe observed relations has to be undertaken.**
-
-
-**7. If you can improve linear relations or limit the effect of influential data, you must consider suitable transformations for variables.**
-
-```{r}
-
-
-```
-
-
-**8. Apart from the retained factor variables, you can consider other categorical variables that can be defined from categorized numeric variables. Do not forget to implement new variable definitions in the test sample.**
-
-```{r}
-
-```
-
-
-**9. You must take into account possible interactions between categorical and numerical variables.**
-
-```{r}
-
-```
-
-
-**10. When building the model, you should study the presence of multi-collinearity and try to reduce their impact on the model for easier interpretation. **
-
-```{r}
-
-```
-
-
-**11. You should build the model using a technique for selecting variables (removing no significant predictors and/or stepwise selection of the best models).**
-
-```{r}
-
-```
-
-
-**12.The validation of the model has to be done with graphs and / or suitable tests to verify model assumptions.**
-
-```{r}
-
-```
-
-
-**13. You must include the study of unusual and / or influential data. **
-
-```{r}
-
-```
-
-
-**14. The resulting model should be interpreted in terms of the relationships of selected predictors and its effect on the response variable. **
-
-```{r}
-
-```
-
-
-**15. You have to apply your final model to the test sample and roughly assess forecasting capability.**
-
-```{r}
-
-```
-
