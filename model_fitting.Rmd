@@ -135,20 +135,117 @@ Ajusted R-squared has increased about 4%.
 par(mfrow=c(2,2))
 plot(m3, id.n=5)
 ```
-
+The residuals' distribution is closer to normal now. However, it isn't normal yet.
 
 ```{r}
 #boxTidwell(SalePrice ~ ., data=df_num2)   THIS GIVES ERROR because most variables have null values
 # We'll assign 10^(-6) to all cells equal to 0 to be able to use boxTidwell without alterating too much the model
 
 df_num2 = replace(df_num2, df_num2 == 0, 1e-6)
-#for (i in 1:(length(names(df_num2))-1)) {
-#  df_num2[which(df_num2[,i]==0),i] = 1e-12
-#}
 summary(df_num2)
-boxTidwell(SalePrice~., data=df_num2)
+
+# boxTidwell(log(SalePrice)~., data=df_num2) THIS GIVES ERROR AS WELL because the model has too many variables
+
+boxTidwell(log(SalePrice) ~ LotArea+YearBuilt+MasVnrArea, data = df_num2)
+# We should apply sqrt(LotArea). The lambda for YearBuilt is too large, so it would difficult to interpet the model using it. MasVnrArea has a too large p-value, so we cannot reject the null hypothesis that lambda = 1.
+boxTidwell(log(SalePrice)~LotFrontage, data = df_num2)
+# Too small lambda
+boxTidwell(log(SalePrice)~BedroomAbvGr, data = df_num2)
+# Too large p-value
+boxTidwell(log(SalePrice)~Fireplaces, data =df_num2)
+# We apply log() to Fireplaces
+boxTidwell(log(SalePrice)~WoodDeckSF, data = df_num2)
+# We apply sqrt() to WoodDeckSF
+boxTidwell(log(SalePrice)~OpenPorchSF, data = df_num2)
+# Too small lambda
+```
 
 
 
+```{r}
+m4 = lm(log(SalePrice) ~ LotFrontage+sqrt(LotArea)+YearBuilt+MasVnrArea+
+          BedroomAbvGr+log(Fireplaces)+sqrt(WoodDeckSF)+OpenPorchSF,
+        data=df_num2)
+summary(m4)
+plot(m4)
+```
+Adjusted R-squared has increased slightly. Since we cannot find a significant improvement, we will compare m3 and m4 with more advanced tools.
+
+```{r}
+AIC(m3, m4)
+BIC(m3,m4)
+```
+In absolute value, m3 has slightly lower AIC and BIC, so actually it is  better than m4.
+
+We'll try now to only apply a few of the relevant transformations.
+
+```{r}
+m5 = lm(log(SalePrice) ~ LotFrontage+LotArea+YearBuilt+MasVnrArea+
+          BedroomAbvGr+log(Fireplaces)+sqrt(WoodDeckSF)+OpenPorchSF,
+        data=df_num2)
+summary(m5)
+AIC(m4,m5)
+BIC(m4,m5)
+```
+
+```{r}
+m6 = lm(log(SalePrice) ~ LotFrontage+sqrt(LotArea)+YearBuilt+MasVnrArea+
+          BedroomAbvGr+Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF,
+        data=df_num2)
+summary(m6)
+AIC(m4,m6)
+BIC(m4,m6)
+```
+
+```{r}
+m7 = lm(log(SalePrice) ~ LotFrontage+sqrt(LotArea)+YearBuilt+MasVnrArea+
+          BedroomAbvGr+log(Fireplaces)+WoodDeckSF+OpenPorchSF,
+        data=df_num2)
+summary(m7)
+AIC(m4,m7)
+BIC(m4,m7)
+```
+
+```{r}
+m8 = lm(log(SalePrice)~LotFrontage+sqrt(LotArea)+YearBuilt+MasVnrArea
+        +BedroomAbvGr+Fireplaces+WoodDeckSF+OpenPorchSF, 
+        data=df_num2); summary(m8)
+
+m9 = lm(log(SalePrice)~LotFrontage+LotArea+YearBuilt+MasVnrArea
+        +BedroomAbvGr+log(Fireplaces)+WoodDeckSF+OpenPorchSF, 
+        data=df_num2); summary(m9)
+
+m10 = lm(log(SalePrice)~LotFrontage+LotArea+YearBuilt+MasVnrArea
+        +BedroomAbvGr+Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF, 
+        data=df_num2); summary(m10)
+AIC(m4,m10)
+AIC(m4,m10)
+AIC(m4,m10)
+```
+
+The two best models are m5 and m9. We pick the simplest of both, m9. That is, the only transformation we apply in the end is log(Fireplaces).
+
+```{r}
+df_num3 <- df_num
+df_num3$Fireplaces = df_num2$Fireplaces
+
+m9 = lm(log(SalePrice)~LotFrontage+LotArea+YearBuilt+MasVnrArea
+        +BedroomAbvGr+log(Fireplaces)+WoodDeckSF+OpenPorchSF, 
+        data=df_num3); summary(m9)
+AIC(m4,m9)
+plot(m9)
+```
+
+# Factors
+
+```{r}
+df4 <- df
+df4$Fireplaces = df_num2$Fireplaces
+
+m11 = lm(log(SalePrice)~LotFrontage+LotArea+YearBuilt+MasVnrArea
+        +BedroomAbvGr+log(Fireplaces)+WoodDeckSF+OpenPorchSF+
+          OverallQual, 
+        data=df4); summary(m11)
+AIC(m11)
 ```
 
