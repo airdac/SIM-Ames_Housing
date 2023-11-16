@@ -18,6 +18,18 @@ if(!is.null(dev.list())) dev.off()
 rm(list = ls())
 ```
 
+```{r}
+# Load libraries
+library(car)
+library(mice)
+library(dplyr) 
+library(missMDA)
+library(FactoMineR)
+library(chemometrics)
+library(DataExplorer)
+library(corrplot)
+```
+
 
 ```{r}
 # Load data
@@ -41,7 +53,37 @@ summary(m0)
 
 vif(m0)
 # The X1stFlrSF, X2ndFlrSF, GrLivArea, has a vif correlation bigger than 10, indicating that we'll need to do some kind of transformation or simply remove it.
+```
 
+
+```{r}
+# Let's store the indices of the variables with at least one star in the lm and vif<5
+id_num_star1 = c(1:5,15,17,21:23)
+df_num1 <- df_num[, id_num_star1]
+m1 = lm(SalePrice ~., data=df_num1)
+summary(m1)
+vif(m1)
+corr_mat <- cor(df_num1)
+corrplot(corr_mat)
+cor.test(df_num1$YearBuilt, df_num1$YearRemodAdd)
+```
+
+YearBuilt and YearRemodAdd are highly correlated, so we remove them in the next model
+
+```{r}
+id_num_star2 = c(1:3,5,15,17,21:23)
+df_num2 <- df_num[, id_num_star2]
+m2 = lm(SalePrice ~., data=df_num2)
+summary(m2)
+vif(m2)
+corr_mat <- cor(df_num2)
+corrplot(corr_mat)
+corr_mat
+```
+
+Now, the most correlated variables in our model have at most a coefficient of correlation of 0.315, which in the context of real estate it is weak. We have obtained this information from https://37parallel.com/real-estate-correlation/.
+
+```{r}
 boxTidwell(SalePrice ~ ., data=df_num)
 
 boxcox(m0)
