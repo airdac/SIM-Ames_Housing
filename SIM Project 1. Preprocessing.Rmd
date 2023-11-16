@@ -1,5 +1,5 @@
 ---
-title: "SIM Project 1"
+title: "SIM Project 1. Preprocessing"
 author: "Adrià Casanova", "Víctor Garcia", "Zhengyong Ji"
 date: "November, 19th 2023"
 output: 
@@ -11,15 +11,16 @@ editor_options:
   chunk_output_type: console
 ---
 
-# The file contains some numeric variables (retain all of them) and many factors (restrict to 10 to reduce the effort).
+# In this work, we’ll study the data set called “Ames Housing dataset”, collected by Dean De Cock for the purpose to analyze the correlation about house prices and different features that describe the house condition, and then to build a regression model that will allows us to predict the sale price.
 
 **Data preparation**
 
 ```{r,echo=FALSE}
-# Load the data
+# Clean the workspace
 if(!is.null(dev.list())) dev.off()
 rm(list = ls())
 
+# Load the data
 train = read.csv("train.csv")
 test = read.csv("test.csv")
 
