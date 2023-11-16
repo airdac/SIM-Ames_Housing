@@ -28,6 +28,8 @@ library(FactoMineR)
 library(chemometrics)
 library(DataExplorer)
 library(corrplot)
+library(MASS)
+library(effects)
 ```
 
 
@@ -66,9 +68,10 @@ vif(m1)
 corr_mat <- cor(df_num1)
 corrplot(corr_mat)
 cor.test(df_num1$YearBuilt, df_num1$YearRemodAdd)
+corr_mat
 ```
 
-YearBuilt and YearRemodAdd are highly correlated, so we remove them in the next model
+YearBuilt and YearRemodAdd are highly correlated and YearBuilt is more correlated with the target. Hence,we remove YearRemodAdd in the next model
 
 ```{r}
 id_num_star2 = c(1:3,5,15,17,21:23)
@@ -84,20 +87,68 @@ corr_mat
 Now, the most correlated variables in our model have at most a coefficient of correlation of 0.315, which in the context of real estate it is weak. We have obtained this information from https://37parallel.com/real-estate-correlation/.
 
 ```{r}
-boxTidwell(SalePrice ~ ., data=df_num)
-
-boxcox(m0)
-
+Anova(m2)
 ```
 
-Note: try to transform the target variable if there are strange distributions of residues
+Anova shows that all the variables we have kept are relevant.
+
+Let's test the model. Later, we will study the possible transformations of the variables
 
 ```{r}
-# If only choosing the high correlation features, he's our model 1
+plot(m2)
+```
 
-m1 = lm(SalePrice ~ LotFrontage+LotArea+YearBuilt+YearRemodAd+MasVnrArea+BsmtFinSF1+TotalBsmtSF+GrLivArea+BedroomAbvGr+Fireplaces, data=df_num)
+```{r}
+influencePlot(m2)
+# D's threshold
+D_thresh <- 2/sqrt(dim(df_num2)[1]); D_thresh
+```
 
-summary(m1)
+There aren't outliers in the model according to the Cook's distance.
+
+
+```{r}
+step(m2)
+```
+
+Errors aren't normally distributed, so we will use boxTidwell() to test whether some transformation of the variables should be carried.
+```{r}
+#residualPlots(m2)
+#avPlots(m2)
+#crPlot(m2)
+```
+
+
+TRANSFORMATIONS OF VARIABLES
+
+boxcox
+```{r}
+boxcox(m2)
+# We should apply log(x) to SalePrice
+m3 = lm(log(SalePrice)~., data=df_num2)
+summary(m3)
+```
+
+Ajusted R-squared has increased about 4%.
+
+```{r}
+par(mfrow=c(2,2))
+plot(m3, id.n=5)
+```
+
+
+```{r}
+#boxTidwell(SalePrice ~ ., data=df_num2)   THIS GIVES ERROR because most variables have null values
+# We'll assign 10^(-6) to all cells equal to 0 to be able to use boxTidwell without alterating too much the model
+
+df_num2 = replace(df_num2, df_num2 == 0, 1e-6)
+#for (i in 1:(length(names(df_num2))-1)) {
+#  df_num2[which(df_num2[,i]==0),i] = 1e-12
+#}
+summary(df_num2)
+boxTidwell(SalePrice~., data=df_num2)
+
+
 
 ```
 
