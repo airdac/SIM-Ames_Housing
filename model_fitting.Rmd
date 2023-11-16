@@ -38,6 +38,24 @@ df_num <- df[, which(sapply(df, is.numeric))]
 m0 = lm(SalePrice ~ ., data=df_num)
 
 summary(m0)
+
+vif(m0)
+# The X1stFlrSF, X2ndFlrSF, GrLivArea, has a vif correlation bigger than 10, indicating that we'll need to do some kind of transformation or simply remove it.
+
+boxTidwell(SalePrice ~ ., data=df_num)
+
+boxcox(m0)
+
 ```
 
 Note: try to transform the target variable if there are strange distributions of residues
+
+```{r}
+# If only choosing the high correlation features, he's our model 1
+
+m1 = lm(SalePrice ~ LotFrontage+LotArea+YearBuilt+YearRemodAd+MasVnrArea+BsmtFinSF1+TotalBsmtSF+GrLivArea+BedroomAbvGr+Fireplaces, data=df_num)
+
+summary(m1)
+
+```
+
