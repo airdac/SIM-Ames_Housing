@@ -343,7 +343,7 @@ Anova(m18)
 step(m18, k = log(nrow(df)))
 ```
 
-Any of these interactions have improved much the model, so we won't keep any. No other interaction would make sense
+Any of these interactions have improved much the model, so we won't keep any. No other interaction would make sense, so we won't try anymore.
 
 ```{r}
 predicted_values = predict.lm(m15.1, df_test, se.fit=TRUE, interval="prediction", level=0.95)
