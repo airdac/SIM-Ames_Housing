@@ -2,12 +2,15 @@
 title: "SIM Project 1. Preprocessing"
 author: "Adrià Casanova Víctor Garcia Zhengyong Ji"
 date: "November, 19th 2023"
-output: 
-  pdf_document: 
-    toc: true
+output:
+  word_document:
+    toc: yes
+    toc_depth: '3'
+  pdf_document:
+    toc: yes
     toc_depth: 3
-    number_sections: true
-editor_options: 
+    number_sections: yes
+editor_options:
   chunk_output_type: console
 ---
 In this work, we will study the data set called “Ames Housing dataset”, collected by Dean De Cock for the purpose to analyze the correlation about house prices and different features that describe the house condition, and then to build a regression model that will allows us to predict the sale price.
@@ -155,12 +158,8 @@ test$OverallQual <- replace(test$OverallQual, test$OverallQual %in% 5:6, "Modera
 test$OverallQual <- replace(test$OverallQual, test$OverallQual %in% 7:8, "Good")
 test$OverallQual <- replace(test$OverallQual, test$OverallQual %in% 9:10, "VGood")
 
-train$OverallQual <- factor(train$OverallQual, levels = c("VBad", "Bad", 
-                                                          "Moderate", "Good", 
-                                                          "VGood"))
-test$OverallQual <- factor(test$OverallQual, levels = c("VBad", "Bad",
-                                                        "Moderate", "Good",
-                                                        "VGood"))
+train$OverallQual <- factor(train$OverallQual, levels = c("VBad", "Bad", "Moderate", "Good", "VGood"))
+test$OverallQual <- factor(test$OverallQual, levels = c("VBad", "Bad","Moderate", "Good","VGood"))
 
 t.train2 <- table(train$OverallQual); t.train2
 t.test2 <- table(test$OverallQual); t.test2
@@ -377,7 +376,7 @@ train_num = select(train, Numerical_val)
 train_cat = select(train, Categorical_val)
 ```
 
-# Univariate outliers detection
+# 1. Univariate outliers detection
 First we analysed the target variable, where we found 12 severe outliers as 
 this variable. Because the target variable can not be imputed we decided to 
 remove those observations. You can see all the outliers in the following plot
@@ -428,7 +427,7 @@ par(mfrow=c(1,1))
 train = train[-severe_outliers(train$SalePrice),]
 ```
 
-# PCA imputation
+# 2. PCA imputation
 Before the detection of outliers there was arround 1% of missing in some numerical variables (see the profiling at the annexes for more datail). After this detection, the variables that contained most missings were "GarageYrBlt" (6% in train and 5% in test), "MasVnrArea" (2% in train and 3% in test), and "OpenPorchSF"(1% in both). 
 
 To impute, we assumed that all numerical variables had NA's that were at random and used a PCA to impute both "test" and "train" datasets. As the quartile distributions for all imputed variables are similar, as we can see in the box-plot, we conclude that the imputation was successful for all variables and created a new dataframe with the imputed values. However, for train, we found that for OpenPorchSF feature, there is a negative record. As this is the square feet for open porch area, and it cannot be negative. We suspect that it could be 0, and transformed it.
@@ -482,7 +481,7 @@ b
 ```
 
 
-# Multivariate outliers detection
+# 3. Multivariate outliers detection
 
 After the imputation, we decided to perform a Moutlier analysis to detect multivariate outliers. As using all numerical variables returns a singular matrix we decided to make the analysis with only the following variables: "LotFrontage", "LotArea", "YearRemodAdd", "BsmtFinSF1", "BsmtUnfSF", "GrLivArea", "Fireplaces", "GarageYrBlt", "GarageArea".
 
@@ -532,7 +531,7 @@ outliers.test = which(res.mout.test$md>res.mout.test$cutoff & res.mout.test$rd >
 length(outliers.test)
 ```
 
-# EDA
+# 4. EDA
 The last step of the preprocessing was the exploratory data analysis. This step was done automatically using the reports generated with the "SmartEDA" library that you can find in the annexes. The reports were generated considering "train" and "test" files after imputation and just after loading them, without any transformation.
 
 ```{r, echo=FALSE}
@@ -562,7 +561,7 @@ shapiro.test(train$LotArea)
 
 **1. Feature selection**
 
-# Profiling and selection of categorical features
+# 5. Profiling and selection of categorical features
 Once we have the data clean and preprocesed, we have selected the 10 most relevant
 categories using the profiling of FactoMiner. More precisely, we alinised the relationship between variables in "train" datasets with "SalePrice" and selected the categorical variables with an smaller p-value. 
 
@@ -586,7 +585,7 @@ res.con$category
 cor.test(train$YrSold, train$SalePrice)
 ```
 
-# Analysis of correlation of numerical variables
+# 6. Analysis of correlation of numerical variables
 Using the basic profiling of Factominer we discover that the most correlated numerical variables with the target, with more than 50 % of R^2 are: GrLivArea, GarageCars, GarageArea, TotalBsmtSF, X1stFlrSF, YearBuilt, FullBath, YearRemodAdd, GarageYrBlt and TotRmsAbvGrd.
 
 ```{r}
@@ -606,7 +605,7 @@ corr_mat = cor(train_num, method = 'spearman', use = "complete.obs")
 corrplot(corr_mat, order = 'hclust', addrect = 5)
 ```
 
-# Preparation of data for modelling
+# 7. Preparation of data for modelling
 The last step of the preprocessing was to create a new file with all the variables
 that we will use to make our model. To do so, we added the 10 categorical 
 variables to the imputed dataframe. The same process was done with "test" to predict the target variable using the model that we will create.
