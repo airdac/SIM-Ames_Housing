@@ -386,6 +386,13 @@ ks_test_result
 
 The Kolmogorov-Smirnov test shows that predicted and real distributions of SalePrice should be accepted to be different.
 
+Finally, we will check the normality of the residuals.
+```{r}
+plot(m15.1)
+shapiro.test(m15.1$residuals)
+```
+Residuals don't follow a normal distribution, so the model won't give very accurate results. Nevertheless, we are happy with our resulting model, so we will not do any more changes.
+
 # Model selection
 From the resulting model, we tried to reduce the number of variables using "step" method with BIC (Bayesian information criteria) to consider a greater effect of the complexity on the model considering that there are a lot of variables. Additionally we performed an "Anova" method, that compares a base model with a nested model of one less variable.
 
