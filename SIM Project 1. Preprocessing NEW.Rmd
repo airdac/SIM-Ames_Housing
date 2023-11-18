@@ -170,31 +170,31 @@ barplot(t.test2, main = "test$OverallQual")
 MSSubClass will have 4 levels according to the amount of stories of the dwelling.
 
 ```{r}
-t.train <- table(train$MSSubClass); t.train
-t.test <- table(test$MSSubClass); t.test
+#t.train <- table(train$MSSubClass); t.train
+#t.test <- table(test$MSSubClass); t.test
 
-par(mfrow=c(1,2))
-barplot(t.train, main = "train$MSSubClass")
-barplot(t.test, main = "test$MSSubClass")
+#par(mfrow=c(1,2))
+#barplot(t.train, main = "train$MSSubClass")
+#barplot(t.test, main = "test$MSSubClass")
 
-train$MSSubClass <- replace(train$MSSubClass, train$MSSubClass %in% c(20,30,40,120), "1S")
-train$MSSubClass <- replace(train$MSSubClass, train$MSSubClass %in% c(45, 50, 150), "1.5S")
-train$MSSubClass <- replace(train$MSSubClass, train$MSSubClass %in% c(60, 70, 160), "2S" )
-train$MSSubClass <- replace(train$MSSubClass, train$MSSubClass %in% c(75, 80, 85, 90, 180,190), "+2S")
+#train$MSSubClass <- replace(train$MSSubClass, train$MSSubClass %in% c(20,30,40,120), "1S")
+#train$MSSubClass <- replace(train$MSSubClass, train$MSSubClass %in% c(45, 50, 150), "1.5S")
+#train$MSSubClass <- replace(train$MSSubClass, train$MSSubClass %in% c(60, 70, 160), "2S" )
+#train$MSSubClass <- replace(train$MSSubClass, train$MSSubClass %in% c(75, 80, 85, 90, 180,190), "+2S")
 
-test$MSSubClass <- replace(test$MSSubClass, test$MSSubClass %in% c(20,30,40,120), "1S")
-test$MSSubClass <- replace(test$MSSubClass, test$MSSubClass %in% c(45, 50, 150), "1.5S")
-test$MSSubClass <- replace(test$MSSubClass, test$MSSubClass %in% c(60, 70, 160), "2S" )
-test$MSSubClass <- replace(test$MSSubClass, test$MSSubClass %in% c(75, 80, 85, 90, 180,190), "+2S")
+#test$MSSubClass <- replace(test$MSSubClass, test$MSSubClass %in% c(20,30,40,120), "1S")
+#test$MSSubClass <- replace(test$MSSubClass, test$MSSubClass %in% c(45, 50, 150), "1.5S")
+#test$MSSubClass <- replace(test$MSSubClass, test$MSSubClass %in% c(60, 70, 160), "2S" )
+#test$MSSubClass <- replace(test$MSSubClass, test$MSSubClass %in% c(75, 80, 85, 90, 180,190), "+2S")
 
-train$MSSubClass <- factor(train$MSSubClass, levels = c("1S", "1.5S", "2S", "+2S"))
-test$MSSubClass <- factor(test$MSSubClass, levels = c("1S", "1.5S", "2S", "+2S"))
+#train$MSSubClass <- factor(train$MSSubClass, levels = c("1S", "1.5S", "2S", "+2S"))
+#test$MSSubClass <- factor(test$MSSubClass, levels = c("1S", "1.5S", "2S", "+2S"))
 
-t.train2 <- table(train$MSSubClass); t.train2
-t.test2 <- table(test$MSSubClass); t.test2
+#t.train2 <- table(train$MSSubClass); t.train2
+#t.test2 <- table(test$MSSubClass); t.test2
 
-barplot(t.train2, main = "train$MSSubClass")
-barplot(t.test2, main = "test$MSSubClass")
+#barplot(t.train2, main = "train$MSSubClass")
+#barplot(t.test2, main = "test$MSSubClass")
 ```
 Neighborhood will have 3 ordered levels following the real-estate order found in https://www.neighborhoodscout.com/ia/ames/real-estate.
 
