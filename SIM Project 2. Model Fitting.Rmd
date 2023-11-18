@@ -35,12 +35,19 @@ library(effects)
 ```{r}
 # Load data
 df = read.csv("train_impute.csv")
+df_test = read.csv("test_impute.csv")
 
 # Declare factors
 df$OverallQual <- as.factor(df$OverallQual)
 df$MSSubClass <- as.factor(df$MSSubClass)
 char_var <- which(sapply(df, is.character))
 df[,char_var] <- lapply(df[, char_var], as.factor)
+
+# Declare factors
+df_test$OverallQual <- as.factor(df_test$OverallQual)
+df_test$MSSubClass <- as.factor(df_test$MSSubClass)
+char_var <- which(sapply(df_test, is.character))
+df_test[,char_var] <- lapply(df_test[, char_var], as.factor)
 ```
 
 
@@ -298,7 +305,7 @@ step(m15, k = log(nrow(df)))
 ```{r}
 m15.1 = lm(log(SalePrice)~sqrt(LotArea)+YearBuilt+MasVnrArea+
           BedroomAbvGr+Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF+OverallQual+BsmtQual+KitchenQual, 
-        data=df); summary(m15)
+        data=df); summary(m15.1)
 BIC(m15.1,m15,m14,m13,m12.1,m12,m11)
 Anova(m15.1)
 step(m15.1, k = log(nrow(df)))
@@ -306,7 +313,7 @@ step(m15.1, k = log(nrow(df)))
 
 ```{r}
 m16 = lm(log(SalePrice)~sqrt(LotArea)+YearBuilt+MasVnrArea+
-          BedroomAbvGr+Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF+OverallQual+BsmtQual+KitchenQual+Neighborhood, data=df); summary(m15)
+          BedroomAbvGr+Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF+OverallQual+BsmtQual+KitchenQual+Neighborhood, data=df); summary(m16)
 BIC(m16,m15.1,m15,m14,m13,m12.1,m12,m11)
 Anova(m16)
 step(m16, k = log(nrow(df)))
@@ -314,6 +321,69 @@ step(m16, k = log(nrow(df)))
 
 m16 has a lower BIC than m15.1, so we keep m15.1 and stop adding categories.
 
+
+# Interactions
+1. YearBuilt and OverallQual intuitively should interact because of inflation. Indeed, all variables could interact with YearBuilt, but OverallQual summarizes them all.
+
+```{r}
+m17 = lm(log(SalePrice)~sqrt(LotArea)+MasVnrArea+
+          BedroomAbvGr+Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF+YearBuilt*OverallQual+BsmtQual+KitchenQual, data=df); summary(m17)
+BIC(m17,m16,m15.1,m15,m14,m13,m12.1,m12,m11)
+Anova(m17)
+step(m17, k = log(nrow(df)))
+```
+
+2. LotArea and YearBuilt should interact as well because of inflation.
+
+```{r}
+m18 = lm(log(SalePrice)~MasVnrArea+
+          BedroomAbvGr+Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF+YearBuilt*OverallQual+sqrt(LotArea)*YearBuilt+OverallQual+BsmtQual+KitchenQual, data=df); summary(m18)
+BIC(m18,m17,m16,m15.1,m15,m14,m13,m12.1,m12,m11)
+Anova(m18)
+step(m18, k = log(nrow(df)))
+```
+
+Any of these interactions have improved much the model, so we won't keep any. No other interaction would make sense
+
+```{r}
+predicted_values = predict.lm(m15.1, df_test, se.fit=TRUE, interval="prediction", level=0.95)
+
+test_price = exp(predicted_values$fit)
+
+hist(test_price[,1])
+hist(test_price[,2])
+hist(test_price[,3])
+```
+
+```{r}
+par(mfrow=c(1,2))
+hist(test_price[,1], main = "Distribution of Predicted Sale Price on Test", xlab =  "Predicted test$SalePrice")
+hist(df$SalePrice, main = "Distribution of Sale Price on Train", xlab = "Real train$SalePrice")
+```
+
+```{r}
+par(mfrow=c(1,1))
+plot(density(test_price[,1]), col="red", main = "Density of SalePrice", xlab = "SalePrice")
+lines(density(df$SalePrice), col="blue")
+legend("topright",fill = c("red", "blue"), c("Predicted on Test","Real on Train"))
+```
+
+```{r}
+marginalModelPlots(m15.1, id=list(n=0))
+```
+
+```{r}
+residualPlots( m15.1, id=list(n=0))
+```
+
+In general, using the marginal model plots, we can see that the residuals distribution for most variables are close to 0. However, sqrt(LotArea) seems to have bad residuals in marginalModelPlots(), but not in residualPlots. This could simply mean the first plot doesn't properly represent the residuals of this variable. As for categorical variables, all errors are close to 0, except for the level "VBad" of OverallQual, which is due to the fact that it contains few individuals.
+
+```{r}
+ks_test_result <- ks.test(test_price[,1], df$SalePrice)
+ks_test_result
+```
+
+The Kolmogorov-Smirnov test shows that predicted and real distributions of SalePrice should be accepted to be different.
 
 # Model selection
 From the resulting model, we tried to reduce the number of variables using "step" method with BIC (Bayesian information criteria) to consider a greater effect of the complexity on the model considering that there are a lot of variables. Additionally we performed an "Anova" method, that compares a base model with a nested model of one less variable.
