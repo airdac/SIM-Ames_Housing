@@ -611,7 +611,7 @@ Once we have the data clean and preprocesed, we have selected the 10 most releva
 categories using the profiling of FactoMiner. More precisely, we alinised the relationship between variables in "train" database with "SalePrice" and selected the categorical variables with an smaller p-value. 
 
 The variables that we selected, sorted starting with the smallest p-value, are:
-OverallQual, Neighborhood, ExterQual, BsmtQual, KitchenQual, GarageFinish  
+OverallQual, ExterQual, BsmtQual, KitchenQual, Neighborhood, GarageFinish  
 FireplaceQu, Foundation, GarageType and MSSubClass.
 
 ```{r}
@@ -620,7 +620,7 @@ res.con = condes(train, 80)
 res.con$quali[1:10,]
 ```
 
-Additionally, we analysed the correlation of numerical variables with the target. According to the profile all numerical variables have a R^2 of p < 0.05 except for "YrSold". Furthermore, we have used cor.test() to test against H0="correlation between "YrSold" and "SalePrice" is 0" and we have failted to reject H0. Therefore, "YrSold" cannot be used to model "SalePrice".
+Additionally, we analysed the correlation of numerical variables with the target. According to the profile all numerical variables have a R^2 of p < 0.05 except for "YrSold". Furthermore, we have used cor.test() to test against H0="correlation between "YrSold" and "SalePrice" is 0" and we have failed to reject H0. Therefore, "YrSold" cannot be used to model "SalePrice".
 
 ```{r}
 res.con$quanti

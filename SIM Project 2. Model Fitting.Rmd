@@ -11,7 +11,6 @@ editor_options:
   chunk_output_type: console
 ---
 
-
 ```{r}
 # Clean workspace
 if(!is.null(dev.list())) dev.off()
@@ -92,23 +91,35 @@ Anova(m2)
 
 Anova shows that all the variables we have kept are relevant.
 
+# Model analysis
 Let's test the model. Later, we will study the possible transformations of the variables
 
 ```{r}
 plot(m2)
 ```
 
+And we analyse if there are influent data and found that there are 3 observations that with a bigger Cook's distance than the threshold (considered as 2 / sqrt(n)). Consequently, we decided to remove those observations.
+
 ```{r}
 influencePlot(m2)
-# D's threshold
-D_thresh <- 2/sqrt(dim(df_num2)[1]); D_thresh
-```
 
-There aren't outliers in the model according to the Cook's distance.
+# Calculate D's threshold
+D_thresh <- 2/sqrt(dim(df_num2)[1]); D_thresh
+
+#Remove the points and fit the model again
+influent <- c(1183, 692, 186)
+
+df <- df[-influent,]
+df_num <- df[, which(sapply(df, is.numeric))]
+df_num2 <- df_num[, id_num_star2]
+m2 = lm(SalePrice ~., data=df_num2)
+influencePlot(m2)
+```
 
 
 ```{r}
 step(m2)
+Anova(m2)
 ```
 
 Errors aren't normally distributed, so we will use boxTidwell() to test whether some transformation of the variables should be carried.
@@ -173,9 +184,9 @@ Adjusted R-squared has increased slightly. Since we cannot find a significant im
 
 ```{r}
 AIC(m3, m4)
-BIC(m3,m4)
+BIC(m3, m4)
 ```
-In absolute value, m3 has slightly lower AIC and BIC, so actually it is  better than m4.
+m3 has slightly lower AIC and BIC, so actually it is  better than m4.
 
 We'll try now to only apply a few of the relevant transformations.
 
@@ -219,33 +230,99 @@ m10 = lm(log(SalePrice)~LotFrontage+LotArea+YearBuilt+MasVnrArea
         +BedroomAbvGr+Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF, 
         data=df_num2); summary(m10)
 AIC(m4,m10)
-AIC(m4,m10)
-AIC(m4,m10)
 ```
 
-The two best models are m5 and m9. We pick the simplest of both, m9. That is, the only transformation we apply in the end is log(Fireplaces).
+The best model is m6, that only applies sqrt transformations in LotArea and WoodDeckSF. For this model we have compared the distribution of residuals and saw that it was very similar to the original model
+
 
 ```{r}
-df_num3 <- df_num
-df_num3$Fireplaces = df_num2$Fireplaces
-
-m9 = lm(log(SalePrice)~LotFrontage+LotArea+YearBuilt+MasVnrArea
-        +BedroomAbvGr+log(Fireplaces)+WoodDeckSF+OpenPorchSF, 
-        data=df_num3); summary(m9)
-AIC(m4,m9)
-plot(m9)
+m11 = lm(log(SalePrice) ~ LotFrontage+sqrt(LotArea)+YearBuilt+MasVnrArea+
+          BedroomAbvGr+Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF,
+        data=df_num)
+BIC(m3,m11)
+plot(m11)
 ```
 
 # Factors
+As there were an important number of numeric variables we tried to add factor variables one by one. We started with the most correlated variable with the target and continued in decreasing order. To test if they increase the model forecasting capability we analysed the BIC and the distribution of residuals.
+
+For example, we added "ExterQual" and saw that it increased R^2 while reducing the BIC. Moreover, Anova and step methods suggested that adding the variable was relevant.
+
 
 ```{r}
-df4 <- df
-df4$Fireplaces = df_num2$Fireplaces
-
-m11 = lm(log(SalePrice)~LotFrontage+LotArea+YearBuilt+MasVnrArea
-        +BedroomAbvGr+log(Fireplaces)+WoodDeckSF+OpenPorchSF+
-          OverallQual, 
-        data=df4); summary(m11)
-AIC(m11)
+#OverallQual, ExterQual, BsmtQual, KitchenQual, Neighborhood, GarageFinish  
+#FireplaceQu, Foundation, GarageType and MSSubClass
+m12 = lm(log(SalePrice)~LotFrontage+sqrt(LotArea)+YearBuilt+MasVnrArea+
+          BedroomAbvGr+Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF+OverallQual, 
+        data=df); summary(m12)
+BIC(m10,m12)
+Anova(m12)
+step(m12, k = log(nrow(df)))
 ```
 
+```{r}
+m12.1 = lm(log(SalePrice)~sqrt(LotArea)+YearBuilt+MasVnrArea+
+          BedroomAbvGr+Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF+OverallQual, 
+        data=df); summary(m12.1)
+BIC(m10,m12,m12.1)
+```
+
+
+```{r}
+m13 = lm(log(SalePrice)~sqrt(LotArea)+YearBuilt+MasVnrArea+
+          BedroomAbvGr+Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF+OverallQual+ExterQual, 
+        data=df); summary(m13)
+BIC(m13,m12.1,m11)
+Anova(m13)
+step(m13, k = log(nrow(df)))
+```
+
+```{r}
+m14 = lm(log(SalePrice)~sqrt(LotArea)+YearBuilt+MasVnrArea+
+          BedroomAbvGr+Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF+OverallQual+ExterQual+BsmtQual, 
+        data=df); summary(m14)
+BIC(m14,m13,m12.1,m12,m11)
+Anova(m14)
+step(m14, k = log(nrow(df)))
+```
+
+```{r}
+m15 = lm(log(SalePrice)~sqrt(LotArea)+YearBuilt+MasVnrArea+
+          BedroomAbvGr+Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF+OverallQual+ExterQual+BsmtQual+KitchenQual, 
+        data=df); summary(m15)
+BIC(m15,m14,m13,m12.1,m12,m11)
+Anova(m15)
+step(m15, k = log(nrow(df)))
+```
+
+```{r}
+m15.1 = lm(log(SalePrice)~sqrt(LotArea)+YearBuilt+MasVnrArea+
+          BedroomAbvGr+Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF+OverallQual+BsmtQual+KitchenQual, 
+        data=df); summary(m15)
+BIC(m15.1,m15,m14,m13,m12.1,m12,m11)
+Anova(m15.1)
+step(m15.1, k = log(nrow(df)))
+```
+
+```{r}
+m16 = lm(log(SalePrice)~sqrt(LotArea)+YearBuilt+MasVnrArea+
+          BedroomAbvGr+Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF+OverallQual+BsmtQual+KitchenQual+Neighborhood, data=df); summary(m15)
+BIC(m16,m15.1,m15,m14,m13,m12.1,m12,m11)
+Anova(m16)
+step(m16, k = log(nrow(df)))
+```
+
+m16 has a lower BIC than m15.1, so we keep m15.1 and stop adding categories.
+
+
+# Model selection
+From the resulting model, we tried to reduce the number of variables using "step" method with BIC (Bayesian information criteria) to consider a greater effect of the complexity on the model considering that there are a lot of variables. Additionally we performed an "Anova" method, that compares a base model with a nested model of one less variable.
+
+Both methods suggested that the best possible model is obtained without removing any variable. For example, in AIC, removing "BedroomAbvGr" makes a simpler model but it is less predictive. As a consequence BIC is increased from 31053 to 31056. In "Anova" the p-value for this value is not significant and, as a consequence, we cannot remove this variable as the resulting model is not equivalent.
+
+
+```{r}
+# we use k = log(n) to use BIC instead of AIC 
+step(m2, k = log(nrow(df))) 
+Anova(m0)
+```
