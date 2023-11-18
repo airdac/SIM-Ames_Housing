@@ -1,0 +1,644 @@
+---
+title: "SIM Project 1. Preprocessing"
+author: "Adrià Casanova Víctor Garcia Zhengyong Ji"
+date: "November, 19th 2023"
+output: 
+  pdf_document: 
+    toc: true
+    toc_depth: 3
+    number_sections: true
+editor_options: 
+  chunk_output_type: console
+---
+In this work, we will study the data set called “Ames Housing dataset”, collected by Dean De Cock for the purpose to analyze the correlation about house prices and different features that describe the house condition, and then to build a regression model that will allows us to predict the sale price.
+
+The data set has two parts, the training part and testing part, with 1460 and 1459 observations each other, and 81 variables (including the id variable).
+
+```{r, echo=T, message=FALSE, warning=FALSE, results='hide'}
+# Delete any existing object
+if(!is.null(dev.list())) dev.off()
+rm(list = ls())
+
+library(car)
+library(mice)
+library(dplyr) 
+library(missMDA)
+library(FactoMineR)
+library(chemometrics)
+library(DataExplorer)
+library(corrplot)
+library(DataExplorer)
+
+train = read.csv("train.csv")
+test = read.csv("test.csv")
+
+#Create EDA report before any data preparation
+#create_report(train, output_format = "pdf_document", output_file = "train.pdf")
+#create_report(test, output_format = "pdf_document", output_file = "test.pdf")
+```
+
+**Data preparation and data cleaning**
+
+# 0. Data preparation and data cleaning
+After loading the datasets we defined the types of the variables (categorical, numerical or dates). Some of them required further transformation, based on some assumptions, that are detailed below. 
+
+```{r,  warning=FALSE, results='hide'}
+Categorical_val = c("MSSubClass","MSZoning","Street","Alley","LotShape","LandContour","Utilities","LotConfig","LandSlope","Neighborhood","Condition1","Condition2","BldgType","HouseStyle","OverallQual","OverallCond","RoofStyle","RoofMatl","Exterior1st","Exterior2nd","MasVnrType","ExterQual","ExterCond","Foundation","BsmtQual","BsmtCond","BsmtExposure","BsmtFinType1","BsmtFinType2","Heating","HeatingQC","CentralAir","Electrical","KitchenQual","Functional","FireplaceQu","GarageType","GarageFinish","GarageQual","GarageCond","PavedDrive","PoolQC","Fence","MiscFeature","SaleType","SaleCondition", "MoSold")
+
+Numerical_val = c("LotFrontage","LotArea","MasVnrArea","BsmtFinSF1","BsmtFinSF2","BsmtUnfSF","TotalBsmtSF","X1stFlrSF","X2ndFlrSF","GrLivArea","BsmtFullBath","BsmtHalfBath","FullBath","HalfBath","BedroomAbvGr","KitchenAbvGr","TotRmsAbvGrd","Fireplaces","GarageCars","GarageArea","WoodDeckSF","OpenPorchSF","EnclosedPorch","X3SsnPorch","ScreenPorch","MiscVal","YearBuilt","YearRemodAdd","GarageYrBlt","YrSold")
+
+Date_val = c("YearBuilt","YearRemodAdd","GarageYrBlt","MoSold","YrSold")
+
+# Identify variables susceptible to be transformed into categorical
+sapply(select(train, Numerical_val), table)
+sapply(select(train, Categorical_val), table)
+sapply(select(train, Date_val), table)
+```
+
+1) Non applicable NaN's: There were 3 variables with an important number of missing (aprox 90%) because the measure was not applicable. This happened, firstly, in PoolArea because the pool area can not be computed for houses without a pool. It was also the case of LowQualFinSF because it is only refered to surfaces finished with low quality, and with BsmtFinSF2, that is only applicable for basement of type 2.
+Our solution was to define those three variables as binary variables.
+
+```{r}
+# As we can see there are an important number of Nan
+# PoolArea: 99% missings
+length(which(train$PoolArea > 0))/dim(train)[1]*100
+length(which(test$PoolArea > 0))/dim(test)[1]*100
+
+# LowQualFinSF: 98% missings
+length(which(train$LowQualFinSF > 0))/dim(train)[1]*100
+length(which(test$LowQualFinSF > 0))/dim(test)[1]*100
+
+#BsmtFinSF2: 89% missings
+length(which(train$BsmtFinSF2 > 0))/dim(train)[1]*100
+length(which(test$BsmtFinSF2 > 0))/dim(test)[1]*100
+
+# Under the assumption 1, we transform the variables to binary
+test <- test %>%
+  mutate(PoolArea = ifelse(PoolArea > 0, "Yes", "No"))
+test$PoolArea = as.factor(test$PoolArea)
+train <- train %>%
+  mutate(PoolArea = ifelse(PoolArea > 0, "Yes", "No"))
+train$PoolArea = as.factor(train$PoolArea)
+
+test <- test %>%
+  mutate(LowQualFinSF = ifelse(LowQualFinSF > 0, "Yes", "No"))
+test$LowQualFinSF = as.factor(test$LowQualFinSF)
+train <- train %>%
+  mutate(LowQualFinSF = ifelse(LowQualFinSF > 0, "Yes", "No"))
+train$LowQualFinSF = as.factor(train$LowQualFinSF)
+
+test <- test %>%
+  mutate(BsmtFinSF2 = ifelse(BsmtFinSF2 > 0, "Yes", "No"))
+test$BsmtFinSF2 = as.factor(test$BsmtFinSF2)
+train <- train %>%
+  mutate(BsmtFinSF2 = ifelse(BsmtFinSF2 > 0, "Yes", "No"))
+train$BsmtFinSF2 = as.factor(train$BsmtFinSF2)
+```
+
+2) LotFrontage, which represents the distance from the property to the street, has a high percentage of missing values, 18% in "train" and 16% in "test". A quick look at the summary in both datasets shows there is not any house with a value of 0 for this variable. However, in the real world there exist houses whose entrance is right next to the street, with no separation from it. Hence, we deduce that missing values correspond to a distance of 0 and we impute LotFrontage like so.
+
+```{r}
+#Analysis of the percentage of missings
+percent_miss <- function(data) {
+  return (length(which(is.na(data)))/length(data)*100)
+}
+percent_miss(train$LotFrontage)
+percent_miss(test$LotFrontage)
+
+# Transformation Na'n to 0
+lltrain <- which(is.na(train$LotFrontage))
+lltest <- which(is.na(test$LotFrontage))
+train$LotFrontage[lltrain] <- 0
+test$LotFrontage[lltest] <- 0
+```
+
+3) Only few values possible: Variables BsmtHalfBath KitchenAbvGr have only 3 and 4 values possible, so we transform them into categorical
+
+```{r}
+# BsmtHalfBath is numerical but it can only be 0, 1 or 2
+length(which(train$BsmtHalfBath > 0))/dim(train)[1]*100
+length(which(test$BsmtHalfBath > 0))/dim(test)[1]*100
+
+#KitchenAbvGr can only be 0, 1, 2 or 3
+length(which(train$KitchenAbvGr != 1))/dim(train)[1]*100
+length(which(test$KitchenAbvGr != 1))/dim(test)[1]*100
+
+#Transformation into categorical
+train$BsmtHalfBath <- as.factor(train$BsmtHalfBath)
+test$BsmtHalfBath <- as.factor(test$BsmtHalfBath)
+
+train$KitchenAbvGr <- as.factor(train$KitchenAbvGr)
+test$KitchenAbvGr <- as.factor(test$KitchenAbvGr)
+levels(test$KitchenAbvGr) = c(levels(test$KitchenAbvGr),"3")
+```
+
+4) Variables with too many categories: OverallQual, Neighborhood and MSSubClass have too many levels to study their interactions in the models we will create later. Hence, we aggregate their categories following logical criterias. Even though, these will create a bias in the model, it will allow us to study their effect on the target. That being said, OverallQual will have 5 ordered levels.
+
+```{r}
+t.train <- table(train$OverallQual); t.train
+t.test <- table(test$OverallQual); t.test
+
+par(mfrow=c(1,2))
+barplot(t.train, main = "train$OverallQual")
+barplot(t.test, main = "test$OverallQual")
+par(mfrow=c(1,1))
+
+train$OverallQual <- replace(train$OverallQual, train$OverallQual %in% 1:2, "VBad")
+train$OverallQual <- replace(train$OverallQual, train$OverallQual %in% 3:4, "Bad")
+train$OverallQual <- replace(train$OverallQual, train$OverallQual %in% 5:6, "Moderate")
+train$OverallQual <- replace(train$OverallQual, train$OverallQual %in% 7:8, "Good")
+train$OverallQual <- replace(train$OverallQual, train$OverallQual %in% 9:10, "VGood")
+
+test$OverallQual <- replace(test$OverallQual, test$OverallQual %in% 1:2, "VBad")
+test$OverallQual <- replace(test$OverallQual, test$OverallQual %in% 3:4, "Bad")
+test$OverallQual <- replace(test$OverallQual, test$OverallQual %in% 5:6, "Moderate")
+test$OverallQual <- replace(test$OverallQual, test$OverallQual %in% 7:8, "Good")
+test$OverallQual <- replace(test$OverallQual, test$OverallQual %in% 9:10, "VGood")
+
+train$OverallQual <- factor(train$OverallQual, levels = c("VBad", "Bad", 
+                                                          "Moderate", "Good", 
+                                                          "VGood"))
+test$OverallQual <- factor(test$OverallQual, levels = c("VBad", "Bad",
+                                                        "Moderate", "Good",
+                                                        "VGood"))
+
+t.train2 <- table(train$OverallQual); t.train2
+t.test2 <- table(test$OverallQual); t.test2
+
+barplot(t.train2, main = "train$OverallQual")
+barplot(t.test2, main = "test$OverallQual")
+```
+
+Neighborhood will have 3 ordered levels ("Poor", "Moderate" or "Rich") following the real-estate order found in https://www.neighborhoodscout.com/ia/ames/real-estate. 
+
+```{r}
+t.train <- table(train$Neighborhood); t.train
+t.test <- table(test$Neighborhood); t.test
+
+Rich = c("NoRidge", "NridgHt", "StoneBr", "Timber", "Veenker", "Somerst", "ClearCr", "Crawfor")
+Moderate = c("SWISU", "CollgCr", "Blueste", "Blmngtn", "Gilbert", "Mitchel", "NWAmes", "NPkVill")
+Poor = c("Edwards", "BrDale", "BrkSide", "IDOTRR", "MeadowV", "NAmes", "OldTown", "Sawyer", "SawyerW")
+
+train$Neighborhood <- replace(train$Neighborhood, train$Neighborhood %in% Poor, "Poor")
+train$Neighborhood <- replace(train$Neighborhood, train$Neighborhood %in% Moderate, "Moderate")
+train$Neighborhood <- replace(train$Neighborhood, train$Neighborhood %in% Rich, "Rich")
+
+test$Neighborhood <- replace(test$Neighborhood, test$Neighborhood %in% Poor, "Poor")
+test$Neighborhood <- replace(test$Neighborhood, test$Neighborhood %in% Moderate, "Moderate")
+test$Neighborhood <- replace(test$Neighborhood, test$Neighborhood %in% Rich, "Rich")
+
+train$Neighborhood <- factor(train$Neighborhood, levels = c("Poor", "Moderate", "Rich"))
+test$Neighborhood <- factor(test$Neighborhood, levels = c("Poor", "Moderate", "Rich"))
+
+t.train2 <- table(train$Neighborhood); t.train2
+t.test2 <- table(test$Neighborhood); t.test2
+
+barplot(t.train2, main = "Train Neighborhood")
+barplot(t.test2, main = "Test Neighborhood")
+```
+
+4) Non applicable 0's: There are three variables that represent the area of different types of porches (EnclosedPorch, X3SsnPorch and ScreenPorch). In all of them, there is an important percentatge of 0's (about 90%). As a consequence, we consider that it is more efficient to treat those variables as binary to have a more balanced variable and because the univariate analysis of those variables, like outlier detection, of those variables would be very complicated, as their IQR was 0.
+
+```{r}
+# Calculation of the % of non 0's
+length(which(train$EnclosedPorch > 0))/dim(train)[1]*100
+length(which(test$EnclosedPorch > 0))/dim(test)[1]*100
+
+length(which(train$X3SsnPorch > 0))/dim(train)[1]*100
+length(which(test$X3SsnPorch > 0))/dim(test)[1]*100
+
+length(which(train$ScreenPorch > 0))/dim(train)[1]*100
+length(which(test$ScreenPorch > 0))/dim(test)[1]*100
+
+#Transformation of the variables into binary
+test <- test %>%
+  mutate(EnclosedPorch = ifelse(EnclosedPorch > 0, "Yes", "No"))
+test$EnclosedPorch = as.factor(test$EnclosedPorch)
+train <- train %>%
+  mutate(EnclosedPorch = ifelse(EnclosedPorch > 0, "Yes", "No"))
+train$EnclosedPorch = as.factor(train$EnclosedPorch)
+
+test <- test %>%
+  mutate(X3SsnPorch = ifelse(X3SsnPorch > 0, "Yes", "No"))
+test$X3SsnPorch = as.factor(test$X3SsnPorch)
+train <- train %>%
+  mutate(X3SsnPorch = ifelse(X3SsnPorch > 0, "Yes", "No"))
+train$X3SsnPorch = as.factor(train$X3SsnPorch)
+
+test <- test %>%
+  mutate(ScreenPorch = ifelse(ScreenPorch > 0, "Yes", "No"))
+test$ScreenPorch = as.factor(test$ScreenPorch)
+train <- train %>%
+  mutate(ScreenPorch = ifelse(ScreenPorch > 0, "Yes", "No"))
+train$ScreenPorch = as.factor(train$ScreenPorch)
+```
+
+5) Redundant variable: MiscVal, that measures the price of a miscellaneous feature (like having an elevator) has a lot of 0's (96%) as it is only applicable for some properties. Moreover, the information of the properties that have a miscellaneous feature can be also optained in "MiscFeature" variable. Consequently, we decided to remove this variable from the analysis.
+
+```{r}
+# Analysis of non 0's
+length(which(train$MiscVal > 0))/dim(train)[1]*100
+length(which(test$MiscVal > 0))/dim(test)[1]*100
+
+miscVal_train <- train$MiscVal
+miscVal_test <- test$MiscVal
+train$MiscVal <- NULL
+test$MiscVal <- NULL
+```
+
+6) Creation of a new level for categorical: Because we do not know if all the Nan's in categorical variables are at random we decided that we will not impute any categorical. Consequently, we created a new level for all the missings.
+
+```{r}
+# Declaration of a categorical as factor variables with a new level, "Nan"
+levels(train$Alley) <- c(levels(train$Alley), "NAlley")
+train$Alley[which(is.na(train$Alley))] <- "NAlley"
+levels(test$Alley) <- c(levels(test$Alley), "NAlley")
+test$Alley[which(is.na(test$Alley))] <- "NAlley"
+
+levels(train$BsmtQual) <- c(levels(train$BsmtQual), "NBsmt")
+train$BsmtQual[which(is.na(train$BsmtQual))] <- "NBsmt"
+levels(test$BsmtQual) <- c(levels(test$BsmtQual), "NBsmt")
+test$BsmtQual[which(is.na(test$BsmtQual))] <- "NBsmt"
+
+levels(train$BsmtCond) <- c(levels(train$BsmtCond), "NBsmt")
+train$BsmtCond[which(is.na(train$BsmtCond))] <- "NBsmt"
+levels(test$BsmtCond) <- c(levels(test$BsmtCond), "NBsmt")
+test$BsmtCond[which(is.na(test$BsmtCond))] <- "NBsmt"
+
+levels(train$BsmtExposure) <- c(levels(train$BsmtExposure), "NBsmt")
+train$BsmtExposure[which(is.na(train$BsmtExposure))] <- "NBsmt"
+levels(test$BsmtExposure) <- c(levels(test$BsmtExposure), "NBsmt")
+test$BsmtExposure[which(is.na(test$BsmtExposure))] <- "NBsmt"
+
+levels(train$BsmtFinType1) <- c(levels(train$BsmtFinType1), "NBsmt")
+train$BsmtFinType1[which(is.na(train$BsmtFinType1))] <- "NBsmt"
+levels(test$BsmtFinType1) <- c(levels(test$BsmtFinType1), "NBsmt")
+test$BsmtFinType1[which(is.na(test$BsmtFinType1))] <- "NBsmt"
+
+levels(train$BsmtFinType2) <- c(levels(train$BsmtFinType2), "NBsmt")
+train$BsmtFinType2[which(is.na(train$BsmtFinType2))] <- "NBsmt"
+levels(test$BsmtFinType2) <- c(levels(test$BsmtFinType2), "NBsmt")
+test$BsmtFinType2[which(is.na(test$BsmtFinType2))] <- "NBsmt"
+
+levels(train$FireplaceQu) <- c(levels(train$FireplaceQu), "NFp")
+train$FireplaceQu[which(is.na(train$FireplaceQu))] <- "NFp"
+levels(test$FireplaceQu) <- c(levels(test$FireplaceQu), "NFp")
+test$FireplaceQu[which(is.na(test$FireplaceQu))] <- "NFp"
+
+levels(train$GarageType) <- c(levels(train$GarageType), "NGar")
+train$GarageType[which(is.na(train$GarageType))] <- "NGar"
+levels(test$GarageType) <- c(levels(test$GarageType), "NGar")
+test$GarageType[which(is.na(test$GarageType))] <- "NGar"
+
+levels(train$GarageFinish) <- c(levels(train$GarageFinish), "NGar")
+train$GarageFinish[which(is.na(train$GarageFinish))] <- "NGar"
+levels(test$GarageFinish) <- c(levels(test$GarageFinish), "NGar")
+test$GarageFinish[which(is.na(test$GarageFinish))] <- "NGar"
+
+levels(train$GarageQual) <- c(levels(train$GarageQual), "NGar")
+train$GarageQual[which(is.na(train$GarageQual))] <- "NGar"
+levels(test$GarageQual) <- c(levels(test$GarageQual), "NGar")
+test$GarageQual[which(is.na(test$GarageQual))] <- "NGar"
+
+levels(train$GarageCond) <- c(levels(train$GarageCond), "NGar")
+train$GarageCond[which(is.na(train$GarageCond))] <- "NGar"
+levels(test$GarageCond) <- c(levels(test$GarageCond), "NGar")
+test$GarageCond[which(is.na(test$GarageCond))] <- "NGar"
+
+levels(train$PoolQC) <- c(levels(train$PoolQC), "NPool")
+train$PoolQC[which(is.na(train$PoolQC))] <- "NPool"
+levels(test) <- c(levels(test$PoolQC), "NPool")
+test$PoolQC[which(is.na(test$PoolQC))] <- "NPool"
+
+levels(train$Fence) <- c(levels(train$Fence), "NFen")
+train$Fence[which(is.na(train$Fence))] <- "NFen"
+levels(test$Fence) <- c(levels(test$Fence), "NFen")
+test$Fence[which(is.na(test$Fence))] <- "NFen"
+
+levels(train$MiscFeature) <- c(levels(train$MiscFeature), "N")
+train$MiscFeature[which(is.na(train$MiscFeature))] <- "N"
+levels(test$MiscFeature) <- c(levels(test$MiscFeature), "N")
+test$MiscFeature[which(is.na(test$MiscFeature))] <- "N"
+```
+
+7) Missing in KitchenQual: there is a single missing value in test$KitchenQual, so we impute it with the mode of the variable, TA.
+```{r}
+test$KitchenQual <- replace(test$KitchenQual, is.na(test$KitchenQual), "TA")
+```
+
+8) Transformations into categorical: In some variables, like Month, we decided to transform them into categorical as only some values are possible
+
+```{r}
+# Transformation of other variables into categorical
+test <- test %>%
+  mutate_if(is.character, as.factor)
+train <- train %>%
+  mutate_if(is.character, as.factor)
+
+test$MSSubClass = as.factor(test$MSSubClass)
+test$OverallQual = as.factor(test$OverallQual)
+test$OverallCond = as.factor(test$OverallCond)
+
+train$MSSubClass = as.factor(train$MSSubClass)
+train$OverallQual = as.factor(train$OverallQual)
+train$OverallCond = as.factor(train$OverallCond)
+
+test$MoSold = month.name[test$MoSold]
+test$MoSold = as.factor(test$MoSold)
+train$MoSold = month.name[train$MoSold]
+train$MoSold = as.factor(train$MoSold)
+```
+
+9) Correction of errors:  we found that "Exterior2nd" has a record of "Brk Cmn", which does not match with the data description "BrkComm". So we rename it (in order to match with "Exterior1st")
+
+```{r}
+names(test)[names(test) == "Brk Cmn"] <- "BrkComm"
+```
+
+Lastly, we define the new indexes of all types of variables after transformation.
+
+```{r}
+# Find numerical, categorical and date variables after the imputation
+id_num_val = which(sapply(test, is.numeric)==TRUE)
+
+# We won't analyze the id variable
+id_num_val = as.numeric(id_num_val)[-1]; id_num_val
+id_cat_val = which(sapply(test, is.factor)==TRUE)
+id_cat_val = as.numeric(id_cat_val); id_cat_val
+id_date_val = c(20,21,60,77,78)
+
+# In our datasets, categorical variables are:
+Categorical_val = c("MSSubClass","MSZoning","Street","Alley","LotShape","LandContour","Utilities","LotConfig","LandSlope","Neighborhood","Condition1","Condition2","BldgType","HouseStyle","OverallQual","OverallCond","RoofStyle","RoofMatl","Exterior1st","Exterior2nd","MasVnrType","ExterQual","ExterCond","Foundation","BsmtQual","BsmtCond","BsmtExposure","BsmtFinType1","BsmtFinType2","BsmtFinSF2","Heating","HeatingQC","CentralAir","Electrical","LowQualFinSF","BsmtHalfBath","KitchenAbvGr","KitchenQual","Functional","FireplaceQu","GarageType","GarageFinish","GarageQual","GarageCond","PavedDrive","EnclosedPorch","X3SsnPorch","ScreenPorch","PoolArea","PoolQC","Fence","MiscFeature","SaleType","SaleCondition","MoSold")
+
+# The numerical variables, except the target are
+Numerical_val = c("LotFrontage","LotArea","YearBuilt","YearRemodAdd","MasVnrArea","BsmtFinSF1","BsmtUnfSF","TotalBsmtSF","X1stFlrSF","X2ndFlrSF","GrLivArea","BsmtFullBath","FullBath","HalfBath","BedroomAbvGr","TotRmsAbvGrd","Fireplaces","GarageYrBlt","GarageCars","GarageArea","WoodDeckSF","OpenPorchSF","YrSold")
+
+train_num = select(train, Numerical_val)
+train_cat = select(train, Categorical_val)
+```
+
+# Univariate outliers detection
+First we analysed the target variable, where we found 12 severe outliers as 
+this variable. Because the target variable can not be imputed we decided to 
+remove those observations. You can see all the outliers in the following plot
+
+```{r}
+sevout <- quantile(train$SalePrice,0.75,na.rm=TRUE)+3*(quantile(train$SalePrice,
+        0.75,na.rm=TRUE)-quantile(train$SalePrice,0.25,na.rm=TRUE))
+target_outlier <- which(train$SalePrice > sevout)
+
+Boxplot(train$SalePrice, main = "Sale price", ylab = "Price ($)")
+
+severe_outliers <- function(data) {
+  ss <- summary(data)
+  # Upper/lower severe thresholds
+  utso <- as.numeric(ss[5]+3*(ss[5]-ss[2]))
+  ltso <- as.numeric(ss[2]-3*(ss[5]-ss[2]))
+  
+  return (which((data>utso)|(data<ltso)))
+}
+```
+
+Secondly, for all remaining numerical variables (26), we detected outliers and, for severe outliers, we set them to NA to impute them. This process was done automatically with a loop.
+
+```{r, fig.show='hide'}
+# Function to detect outliers
+severe_outliers <- function(data) {
+  ss <- summary(data)
+  # Upper/lower severe thresholds
+  utso <- as.numeric(ss[5]+3*(ss[5]-ss[2]))
+  ltso <- as.numeric(ss[2]-3*(ss[5]-ss[2]))
+  
+  return (which((data>utso)|(data<ltso)))
+}
+
+# Set them to NA'n and visualize them
+par(mfrow=c(1,2))
+
+for (var in id_num_val) {
+  train[severe_outliers(train[,var]),var] <- NA
+  Boxplot(train[,var], ylab = names(test)[var], main = "Train")
+  
+  test[severe_outliers(test[,var]),var] <- NA
+  Boxplot(test[,var], ylab = names(test)[var], main = "Test")
+}
+par(mfrow=c(1,1))
+
+# Remove the outliers for the target variable
+train = train[-severe_outliers(train$SalePrice),]
+```
+
+# PCA imputation
+Before the detection of outliers there was arround 1% of missing in some numerical variables (see the profiling at the annexes for more datail). After this detection, the variables that contained most missings were "GarageYrBlt" (6% in train and 5% in test), "MasVnrArea" (2% in train and 3% in test), and "OpenPorchSF"(1% in both). 
+
+To impute, we assumed that all numerical variables had NA's that were at random and used a PCA to impute both "test" and "train" datasets. As the quartile distributions for all imputed variables are similar, as we can see in the box-plot, we conclude that the imputation was successful for all variables and created a new dataframe with the imputed values. However, for train, we found that for OpenPorchSF feature, there is a negative record. As this is the square feet for open porch area, and it cannot be negative. We suspect that it could be 0, and transformed it.
+
+```{r, fig.show='hide', results='hide'}
+# Impute
+res.PCA = imputePCA (train[,id_num_val])   
+str (res.PCA)
+str(res.PCA$completeObs)
+
+res.PCA.test = imputePCA (test[,id_num_val])   # impute numeric variables
+str (res.PCA.test)
+str(res.PCA.test$completeObs)
+
+# Create a new dataframe
+train_impute = data.frame(res.PCA$completeObs)
+train_impute$SalePrice <- train$SaleP
+
+test_impute = data.frame(res.PCA.test$completeObs)
+```
+
+```{r, fig.show='hide', results='hide'}
+# Check if the imputation was successful or not: TRAIN
+before_imputation = summary(train[,id_num_val])
+after_imputation = summary(train_impute)
+
+label = c('Before imputation', 'After imputation')
+
+for (x in c(1,2,5,6,8,9,11,15,16,18,20,21,22)) {
+d = data.frame(A = train[,id_num_val][x], B = train_impute[,x])
+b = boxplot(d, names=label, main = names(train[,id_num_val][x]));b
+}
+
+# Transform all negative values of "OpenPorchSF" to 0's
+train_impute[which(train_impute$OpenPorchSF < 0),"OpenPorchSF"] = 0
+```
+
+```{r, fig.show='hide', results='hide'}
+# Check if the imputation was successful or not: TEST
+before_imputation_test = summary(test[,id_num_val])
+after_imputation_test = summary(test_impute)
+
+
+label = c('Before imputation', 'After imputation')
+
+for (x in c(1,2,5,6,8,9,11,15,16,18,20,21,22)) {
+d = data.frame(A = test[,id_num_val][x], B = test_impute[,x])
+b = boxplot(d, names=label, main = names(test[,id_num_val][x]));
+b
+}
+```
+
+
+# Multivariate outliers detection
+
+After the imputation, we decided to perform a Moutlier analysis to detect multivariate outliers. As using all numerical variables returns a singular matrix we decided to make the analysis with only the following variables: "LotFrontage", "LotArea", "YearRemodAdd", "BsmtFinSF1", "BsmtUnfSF", "GrLivArea", "Fireplaces", "GarageYrBlt", "GarageArea".
+
+The analysis showed that there are 112 multivariate outliers in the train dataset and 115 in the test datset.
+
+```{r}
+set.seed(123) #ensure that we always get the same result in Moutlier
+# Best combination of variables
+id_num_val_not_corr = c(1, 2, 4, 6, 7, 11, 17,
+                        18, 20)
+
+# Analysis for train
+res.mout <- Moutlier(train_impute[,id_num_val_not_corr], quantile = 0.95, plot= FALSE)
+
+par(mfrow=c(1,2))
+plot(res.mout$md, col="lightblue", pch = 19, main = 'Detection of multivariable 
+outliers', xlab= 'Observation', 
+     ylab ='Traditional Mahalanobis distance ')
+abline(h = res.mout$cutoff, col = "red", lwd = 5, lty = 2)
+
+plot(res.mout$rd, col="lightblue", pch = 19, xlab= 'Observation', 
+     ylab ='Robust Mahalanobis distance ')
+abline(h = res.mout$cutoff, col = "red", lwd = 5, lty = 2)
+par(mfrow=c(1,1))
+
+outliers = which(res.mout$md>res.mout$cutoff & res.mout$rd > res.mout$cutoff) 
+length(outliers)
+```
+
+```{r}
+set.seed(123) #ensure that we always get the same result in Moutlier
+# Analysis for test
+res.mout.test <- Moutlier(test_impute[,id_num_val_not_corr], quantile = 0.95, plot= FALSE)
+par(mfrow=c(1,2))
+
+plot(res.mout.test$md, col="lightblue", pch = 19, main = 'Detection of multivariable 
+outliers', xlab= 'Observation', 
+     ylab ='Traditional Mahalanobis distance ')
+abline(h = res.mout.test$cutoff, col = "red", lwd = 5, lty = 2)
+
+plot(res.mout.test$rd, col="lightblue", pch = 19, xlab= 'Observation', 
+     ylab ='Robust Mahalanobis distance ')
+abline(h = res.mout.test$cutoff, col = "red", lwd = 5, lty = 2)
+par(mfrow=c(1,1))
+
+outliers.test = which(res.mout.test$md>res.mout.test$cutoff & res.mout.test$rd > res.mout.test$cutoff) 
+length(outliers.test)
+```
+
+# EDA
+The last step of the preprocessing was the exploratory data analysis. This step was done automatically using the reports generated with the "SmartEDA" library that you can find in the annexes. The reports were generated considering "train" and "test" files after imputation and just after loading them, without any transformation.
+
+```{r, echo=FALSE}
+#create_report(train_impute, output_file = "train_imputed.html")
+#create_report(test_impute, output_file = "test_imputed.html")
+```
+
+The most relevant conclusions of EDA, considering all numerical values are: 
+
+1 - "Train" and "test" datasets contains observations that follows a similar 
+distribution for all variables, numerical and categorical. There are also
+similarities in the % of missings and all the other summaries.
+
+2 - Both datasets are highly unbalanced in almost all categories. 
+This is specially relevant in variables like "ExterQual" or "Foundation", 
+where only 2 out of 6 categories retains 86% of the accumulative probability.
+
+3 - Numerical variables have a non normal distribution according to Shapiro–Wilk 
+and Kolmogorov-Smirnov tests. This is specially relevant when modelling as
+linear models requires normality.
+
+```{r}
+# Tests for normality (done in all numerical variables)
+ks.test(train$LotArea, y = 'pnorm')
+shapiro.test(train$LotArea)
+```
+
+**1. Feature selection**
+
+# Profiling and selection of categorical features
+Once we have the data clean and preprocesed, we have selected the 10 most relevant
+categories using the profiling of FactoMiner. More precisely, we alinised the relationship between variables in "train" datasets with "SalePrice" and selected the categorical variables with an smaller p-value. 
+
+The variables that we selected, sorted starting with the smallest p-value, are:
+OverallQual, ExterQual, BsmtQual, KitchenQual, Neighborhood, GarageFinish  
+FireplaceQu, Foundation, GarageType and MSSubClass.
+
+```{r}
+# Profiling: selecting only the 10 more significative qualitative variables
+res.con = condes(train, 80)         
+res.con$quali[1:10,]
+```
+
+Additionally, we analysed the correlation of numerical variables with the target. According to the profile all numerical variables have a R^2 of p < 0.05 except for "YrSold". Furthermore, we have used cor.test() to test against H0="correlation between "YrSold" and "SalePrice" is 0" and we have failed to reject H0. Therefore, "YrSold" cannot be used to model "SalePrice".
+
+```{r}
+res.con$quanti
+res.con$category
+
+# Test the correlation between the target and YrSold
+cor.test(train$YrSold, train$SalePrice)
+```
+
+# Analysis of correlation of numerical variables
+Using the basic profiling of Factominer we discover that the most correlated numerical variables with the target, with more than 50 % of R^2 are: GrLivArea, GarageCars, GarageArea, TotalBsmtSF, X1stFlrSF, YearBuilt, FullBath, YearRemodAdd, GarageYrBlt and TotRmsAbvGrd.
+
+```{r}
+res.con = condes(train, 80)         
+res.con$quanti
+```
+
+As variables are not normally distributed, we created the correlation matrix of all numerical variables using spearman. The result is ploted in a correlation plot, where we performed a cluster analysis to sort the variables, so that variables that are more correlated are placed closer to each other. Additionally, we decided to create 5 clusters, as we do not expect to work with a model with more than 5 numerical variables. Also, note that in this plot the target variable is not included as this analysis was already done.
+
+The interpretation of this plot suggest that positive correlations are more common than negative, where the most important is between BsmtFullBath and BsmtFin with BsmtUnfSF. Also, there are some important positve correlarions that must be considered when making the model, for example, GarageArea is hightly correlated with GarageCars, so both variables should not be included in the same model.
+
+
+```{r}
+# Calculate the correlation matrix and then plot it
+corr_mat = cor(train_num, method = 'spearman', use = "complete.obs")
+
+corrplot(corr_mat, order = 'hclust', addrect = 5)
+```
+
+# Preparation of data for modelling
+The last step of the preprocessing was to create a new file with all the variables
+that we will use to make our model. To do so, we added the 10 categorical 
+variables to the imputed dataframe. The same process was done with "test" to predict the target variable using the model that we will create.
+
+```{r}
+train_impute$OverallQual <- train$OverallQual
+train_impute$Neighborhood <- train$Neighborhood
+train_impute$ExterQual <- train$ExterQual
+train_impute$BsmtQual <- train$BsmtQual
+train_impute$KitchenQual <- train$KitchenQual
+train_impute$GarageFinish <- train$GarageFinish
+train_impute$FireplaceQu <- train$FireplaceQu
+train_impute$Foundation <- train$Foundation
+train_impute$GarageType <- train$GarageType
+train_impute$MSSubClass <- train$MSSubClass
+train_impute$YrSold <- NULL
+
+write.csv(train_impute, file='train_impute.csv', row.names = FALSE)
+```
+
+```{r}
+test_impute$OverallQual <- test$OverallQual
+test_impute$Neighborhood <- test$Neighborhood
+test_impute$ExterQual <- test$ExterQual
+test_impute$BsmtQual <- test$BsmtQual
+test_impute$KitchenQual <- test$KitchenQual
+test_impute$GarageFinish <- test$GarageFinish
+test_impute$FireplaceQu <- test$FireplaceQu
+test_impute$Foundation <- test$Foundation
+test_impute$GarageType <- test$GarageType
+test_impute$MSSubClass <- test$MSSubClass
+test_impute$YrSold <- NULL
+
+write.csv(test_impute, file='test_impute.csv', row.names = FALSE)
+```
