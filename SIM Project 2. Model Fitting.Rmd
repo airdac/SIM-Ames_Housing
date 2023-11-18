@@ -51,7 +51,8 @@ df_test[,char_var] <- lapply(df_test[, char_var], as.factor)
 ```
 
 
-# Create first model with all variables
+# First model
+We create a first model with all the variables we selected previously.
 
 ```{r}
 df_num <- df[, which(sapply(df, is.numeric))]
@@ -253,7 +254,7 @@ plot(m11)
 # Factors
 As there were an important number of numeric variables we tried to add factor variables one by one. We started with the most correlated variable with the target and continued in decreasing order. To test if they increase the model forecasting capability we analysed the BIC and the distribution of residuals.
 
-For example, we added "ExterQual" and saw that it increased R^2 while reducing the BIC. Moreover, Anova and step methods suggested that adding the variable was relevant.
+For example, we added "ExterQual" and saw that it increased R^2 while reducing the BIC. Moreover, Anova and step methods suggested that adding the variable was relevant. Hence, we are following a heuristic approach.
 
 
 ```{r}
