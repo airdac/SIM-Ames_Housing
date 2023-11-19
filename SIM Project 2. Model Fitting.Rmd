@@ -194,7 +194,7 @@ m10 = lm(log(SalePrice)~LotFrontage+LotArea+YearBuilt+MasVnrArea+BedroomAbvGr+
 BIC(m4,m5,m6,m7,m8,m9,m10)
 ```
 
-The best model is m6, that is only applying sqrt() to LotArea and WoodDeckSF. For this model we have compared the distribution of residuals and realized that it is very similar to the original model.
+The best model is m6, that only applies sqrt() to LotArea and WoodDeckSF. For this model we have compared the distribution of residuals and realized that it is very similar to the original model.
 
 ```{r}
 par(mfrow=c(2,2))
@@ -207,7 +207,9 @@ plot(m11)
 # 10. Adding Factors to the numerical model
 We followed an heuristic approach when we added factors to the model. As there was an important amount of numeric variables, we tried to add factor variables one by one. We started with the predictor most correlated with the target and continued in decreasing order. To test the improvement of the model's forecasting capability we analysed its BIC and R^2. Moreover, Anova() and step() methods suggest whether some predictors should be removed.
 
-```{r}
+The results of the code of this section are very long and repetitive, so we hide them in the report.
+
+```{r, results = "hide"}
 m12 = lm(log(SalePrice)~LotFrontage+sqrt(LotArea)+YearBuilt+MasVnrArea
          +BedroomAbvGr+Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF+OverallQual, data=df)
 BIC(m11,m12)
@@ -219,7 +221,7 @@ Comparing m11 and m12, there was a huge improvement in terms of BIC and Adjusted
 
 The Anova test indicates that LotFrontage loses its significance once we add OverallQual, and the step method suggests to remove it.
 
-```{r}
+```{r, results = "hide"}
 m12.1 = lm(log(SalePrice)~sqrt(LotArea)+YearBuilt+MasVnrArea+BedroomAbvGr
            +Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF+OverallQual, data=df)
 summary(m12.1)
@@ -230,7 +232,7 @@ After removing LotFrontage, although R^2 didn't change, BIC increased because we
 
 Next, in m13, we have added ExterQual.
 
-```{r}
+```{r, results = "hide"}
 m13 = lm(log(SalePrice)~sqrt(LotArea)+YearBuilt+MasVnrArea+BedroomAbvGr+
            Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF+OverallQual+ExterQual, data=df)
 summary(m13)
@@ -241,7 +243,7 @@ step(m13, k = log(nrow(df)))
 
 All parameters show that it is correct to add ExterQual, so we continue by adding BsmtQual to the model.
 
-```{r}
+```{r, results = "hide"}
 m14 = lm(log(SalePrice)~sqrt(LotArea)+YearBuilt+MasVnrArea+BedroomAbvGr+
            Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF+OverallQual+ExterQual+BsmtQual, data=df)
 summary(m14)
@@ -252,7 +254,7 @@ step(m14, k = log(nrow(df)))
 
 After this, we add KitcheQual. 
 
-```{r}
+```{r, results = "hide"}
 m15 = lm(log(SalePrice)~sqrt(LotArea)+YearBuilt+MasVnrArea+BedroomAbvGr+
            Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF+OverallQual+ExterQual+
            BsmtQual+KitchenQual, data=df); summary(m15)
@@ -263,7 +265,7 @@ step(m15, k = log(nrow(df)))
 
 The step method shows that ExterQual, after adding the KitchenQual, has lost significance and suggests to remove it. Indeed, BIC improves afterwards.
 
-```{r}
+```{r, results = "hide"}
 m15.1 = lm(log(SalePrice)~sqrt(LotArea)+YearBuilt+MasVnrArea+BedroomAbvGr+
              Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF+OverallQual+BsmtQual+
              KitchenQual, data=df); summary(m15.1)
@@ -274,7 +276,7 @@ step(m15.1, k = log(nrow(df)))
 
 Adding Neighbourhood to the model.
 
-```{r}
+```{r, results = "hide"}
 m16.1 = lm(log(SalePrice)~sqrt(LotArea)+YearBuilt+MasVnrArea+BedroomAbvGr+
              Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF+OverallQual+BsmtQual+
              KitchenQual+Neighborhood, data=df); summary(m16.1)
@@ -285,7 +287,7 @@ step(m16.1, k = log(nrow(df)))
 
 Adding GarageFinish.
 
-```{r}
+```{r, results = "hide"}
 m16.2 = lm(log(SalePrice)~sqrt(LotArea)+YearBuilt+MasVnrArea+BedroomAbvGr+
              Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF+OverallQual+BsmtQual+
              KitchenQual+Neighborhood+GarageFinish, data=df); summary(m16.2)
@@ -296,7 +298,7 @@ step(m16.2, k = log(nrow(df)))
 
 Adding FireplaceQu.
 
-```{r}
+```{r, results = "hide"}
 m16.3 = lm(log(SalePrice)~sqrt(LotArea)+YearBuilt+MasVnrArea+BedroomAbvGr+
              Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF+OverallQual+BsmtQual+
              KitchenQual+Neighborhood+GarageFinish+FireplaceQu, data=df)
@@ -312,7 +314,9 @@ In m16.3, FireplaceQu's coefficient has a p-value larger than 0.05 and, indeed, 
 # 11. Checking possible Interactions
 YearBuilt and OverallQual intuitively should interact because of inflation. Indeed, all variables could interact with YearBuilt, but OverallQual summarizes them.
 
-```{r}
+We will also hide the output of this section's chunks to shorten the report.
+
+```{r, results = "hide"}
 m17 = lm(log(SalePrice)~sqrt(LotArea)+MasVnrArea+
           BedroomAbvGr+Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF+YearBuilt*
            OverallQual+BsmtQual+KitchenQual+Neighborhood+GarageFinish, data=df)
@@ -324,7 +328,7 @@ step(m17, k = log(nrow(df)))
 
 2. LotArea and YearBuilt should interact as well because of inflation.
 
-```{r}
+```{r, results = "hide"}
 m18 = lm(log(SalePrice)~MasVnrArea+
           BedroomAbvGr+Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF+YearBuilt*
            OverallQual+sqrt(LotArea)*YearBuilt+OverallQual+BsmtQual+KitchenQual
@@ -340,7 +344,7 @@ Our final model is m16.2. That is, log(SalePrice) ~ sqrt(LotArea) + YearBuilt + 
 
 ```{r}
 summary(m16.2)
-BIC(m16.2)
+BIC(m16.2, m11, m1)
 ```
 
 
@@ -355,9 +359,9 @@ test_price = exp(predicted_values$fit)
 
 ```{r}
 par(mfrow=c(1,2))
-hist(test_price[,1], main = "Distribution of Predicted Sale Price on Test",
+hist(test_price[,1], main = "Predicted Sale Price on Test",
      xlab =  "Predicted test$SalePrice")
-hist(df$SalePrice, main = "Distribution of Sale Price on Train",
+hist(df$SalePrice, main = "Sale Price on Train",
      xlab = "Real train$SalePrice")
 ```
 
@@ -372,11 +376,11 @@ legend("topright",fill = c("red", "blue"), c("Predicted on Test","Real on Train"
 As can be seen in the previous plots, the real and the predicted distributions of SalePrice are similar, but not identical. This was exactly our goal, since both test and train come from the same population and we wanted to avoid overfitting.
 
 ```{r}
-marginalModelPlots(m15.1, id=list(n=0))
+marginalModelPlots(m16.2, id=list(n=0))
 ```
 
 ```{r}
-residualPlots( m15.1, id=list(n=0))
+residualPlots( m16.2, id=list(n=0))
 ```
 
 In general, using the marginal model plots, we can see that the residuals distribution for most variables are close to 0. However, sqrt(LotArea) seems to have bad residuals in marginalModelPlots(), but not in residualPlots(). This could simply mean the first method doesn't properly represent the residuals of this variable. As for categorical variables, all errors are close to 0, except for the level "VBad" of OverallQual, which is due to the fact that it contains few individuals.
@@ -392,8 +396,8 @@ Finally, we will check the normality of the residuals.
 
 ```{r}
 par(mfrow=c(2,2))
-plot(m15.1)
-shapiro.test(m15.1$residuals)
+plot(m16.2)
+shapiro.test(m16.2$residuals)
 ```
 
 Residuals don't follow a normal distribution, so the model won't give very accurate results. Nevertheless, we are happy with our results, so we will not apply any more changes.
