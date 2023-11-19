@@ -3,24 +3,25 @@ title: "SIM Project 2. Model fitting"
 author: "Adrià Casanova Víctor Garcia Zhengyong Ji"
 date: "November, 19th 2023"
 output:
-  word_document:
-    toc: yes
-    toc_depth: '3'
   pdf_document:
     toc: yes
     toc_depth: 3
-    number_sections: yes
+    number_sections: no
+  word_document:
+    toc: yes
+    toc_depth: '3'
 editor_options:
   chunk_output_type: console
 ---
+To reduce the time of computations, we have split our code in two .Rmd files. In this one, the preprocessed train dataset is found in df, while the preprocessed test database is in df_test.
 
-```{r}
+```{r, include = F}
 # Clean workspace
 if(!is.null(dev.list())) dev.off()
 rm(list = ls())
 ```
 
-```{r}
+```{r, include = F}
 # Load libraries
 library(car)
 library(mice)
@@ -34,8 +35,7 @@ library(MASS)
 library(effects)
 ```
 
-
-```{r}
+```{r, include=F}
 # Load data
 df = read.csv("train_impute.csv")
 df_test = read.csv("test_impute.csv")
@@ -66,7 +66,7 @@ summary(m0)
 vif(m0)
 ```
 
-There is a lot of features with a vif correlation bigger than 5. So in order to reduce the amount of workload, we decided to keep those that are less than 5 and has a high correlation to our target.
+There are a lot of features with a vif correlation larger than 5. So, in order to reduce the amount of workload, we decided to keep those that are less than 5 and are highly correlated with our target.
 
 ```{r}
 # Let's store the indices of the variables with at least one star in the lm and vif<5
@@ -76,7 +76,8 @@ df_num1 <- df_num[, id_num_star1]
 m1 = lm(SalePrice ~., data=df_num1)
 summary(m1)
 vif(m1)
-# As we can observe, the VIF correlation are much better, all the values are less than 2. So the next step is to chech the correlation beatween the features.
+# As we can observe, vif correlations are much better, all values are less than 2.
+# So the next step is to check the correlation between predictors.
 corr_mat <- cor(df_num1)
 corrplot(corr_mat, method = "number")
 ```
@@ -100,14 +101,15 @@ Anova(m2)
 Anova shows that all the variables we have kept are relevant.
 
 # 9. Model analysis and iteration
-Let's test the model with the residual plot and QQ plot. Later, we will study the possible transformations needed for each variable.
+First, let us plot the residuals of m2 to be able to compare them with the next iterations of the model.
 
 ```{r}
-par(mfrow = c(2,2))
+par(mfrow=c(2,2))
 plot(m2)
 ```
 
-And we analyse if there are influent data and found that there are 3 observations that with a bigger Cook's distance than the threshold (considered as 2 / sqrt(n)). Consequently, we decided to remove those observations.
+
+We analysed if there were influential data and found 3 observations with a bigger Cook's distance than the threshold (considered as 2/sqrt(n)). Consequently, we decided to remove those observations.
 
 ```{r}
 # Check the influential plot before removing the influential observation.
@@ -123,57 +125,30 @@ df <- df[-influent,]
 df_num <- df[, which(sapply(df, is.numeric))]
 df_num2 <- df_num[, id_num_star2]
 m2 = lm(SalePrice ~., data=df_num2)
-
-# Make influential plot after removing the influential observation.
-influencePlot(m2)
 ```
 
-
-
-###### Aixo jo no faria per aquest model #####
-```{r}
-#step(m2)
-#Anova(m2)
-```
-Errors aren't normally distributed, so we will use boxTidwell() to test whether some transformation of the variables should be carried.
-```{r}
-#residualPlots(m2)
-#avPlots(m2)
-#crPlot(m2)
-```
-###### Aixo jo no faria per aquest model #####
-
-
-
-Firstly, we check with boxcox function to check if there is any needed transformation
+Firstly, we check if there is any needed transformation with boxcox().
 
 ```{r}
 boxcox(m2)
-# As the lambda is over the 0, We should apply logaritmic transformation to SalePrice
+# As the lambda is greater than 0, we should apply a logarithmic transformation
+# to SalePrice
 m3 = lm(log(SalePrice)~., data=df_num2)
 summary(m3)
 ```
 
-Compared with the m2, the Ajusted R-squared has increased about 4%.
+Compared with m2, adjusted R-squared has increased about 4%.
+
+We will proceed now with the study of possible variable transformations. We'll assign 10^(-6) to all cells equal to 0 to be able to use boxTidwell() without altering too much the model
 
 ```{r}
-par(mfrow=c(2,2))
-plot(m3, id.n=5)
-```
-
-The residual's distribution is closer to normal now. However, it isn't normal yet.
-
-```{r}
-#boxTidwell(SalePrice ~ ., data=df_num2)   THIS GIVES ERROR because most variables have null values
-# We'll assign 10^(-6) to all cells equal to 0 to be able to use boxTidwell without altering too much the model
-
 df_num2 = replace(df_num2, df_num2 == 0, 1e-6)
 summary(df_num2)
 
-# boxTidwell(log(SalePrice)~., data=df_num2) THIS GIVES ERROR AS WELL because the model has too many variables
-
 boxTidwell(log(SalePrice) ~ LotArea+YearBuilt+MasVnrArea, data = df_num2)
-# We should apply sqrt(LotArea). The lambda for YearBuilt is too large, so it would difficult to interpet the model using it. MasVnrArea has a too large p-value, so we cannot reject the null hypothesis that lambda = 1.
+# We should apply sqrt(LotArea). YearBuilt's lambda is too large, so it would be
+# difficult to interpret the model using it. MasVnrArea has a too large p-value,
+# so we cannot reject the null hypothesis that its lambda = 1.
 boxTidwell(log(SalePrice)~LotFrontage, data = df_num2)
 # Too small lambda
 boxTidwell(log(SalePrice)~BedroomAbvGr, data = df_num2)
@@ -186,7 +161,7 @@ boxTidwell(log(SalePrice)~OpenPorchSF, data = df_num2)
 # Too small lambda
 ```
 
-Using the boxTidwell method, below transformation can be applied in the model m4.
+Using the boxTidwell method, the transformation below can be applied to m4.
 
 ```{r}
 m4 = lm(log(SalePrice) ~ LotFrontage+sqrt(LotArea)+YearBuilt+MasVnrArea+
@@ -195,29 +170,31 @@ m4 = lm(log(SalePrice) ~ LotFrontage+sqrt(LotArea)+YearBuilt+MasVnrArea+
 summary(m4)
 ```
 
-Adjusted R-squared has increased slightly. Since we cannot find a significant improvement, we will compare m3 and m4 with more advanced tools such as AIC and BIC.
+Adjusted R-squared has increased slightly. Since we cannot find a significant improvement, we will compare m3 and m4 with a more advanced tool, the BIC.
 
 ```{r}
-AIC(m3, m4)
 BIC(m3, m4)
 ```
 
-Checking the AIC and BIC, the overall improvement of applying all the changes simultaneously is small, so we decided to check different combination to find a better result.
-
-We'll try now to only apply a few of the relevant transformations.
+The overall improvement of applying all transformations simultaneously is small, so we decided to check different combinations to find a better result.
 
 ```{r}
-m5 = lm(log(SalePrice) ~ LotFrontage+LotArea+YearBuilt+MasVnrArea+BedroomAbvGr+log(Fireplaces)+sqrt(WoodDeckSF)+OpenPorchSF,data=df_num2)
-m6 = lm(log(SalePrice) ~ LotFrontage+sqrt(LotArea)+YearBuilt+MasVnrArea+BedroomAbvGr+Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF,data=df_num2)
-m7 = lm(log(SalePrice) ~ LotFrontage+sqrt(LotArea)+YearBuilt+MasVnrArea+BedroomAbvGr+log(Fireplaces)+WoodDeckSF+OpenPorchSF,data=df_num2)
-m8 = lm(log(SalePrice)~LotFrontage+sqrt(LotArea)+YearBuilt+MasVnrArea+BedroomAbvGr+Fireplaces+WoodDeckSF+OpenPorchSF, data=df_num2)
-m9 = lm(log(SalePrice)~LotFrontage+LotArea+YearBuilt+MasVnrArea+BedroomAbvGr+log(Fireplaces)+WoodDeckSF+OpenPorchSF, data=df_num2)
-m10 = lm(log(SalePrice)~LotFrontage+LotArea+YearBuilt+MasVnrArea+BedroomAbvGr+Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF, data=df_num2)
-AIC(m4,m5,m6,m7,m8,m9,m10)
+m5 = lm(log(SalePrice) ~ LotFrontage+LotArea+YearBuilt+MasVnrArea+
+          BedroomAbvGr+log(Fireplaces)+sqrt(WoodDeckSF)+OpenPorchSF,data=df_num2)
+m6 = lm(log(SalePrice) ~ LotFrontage+sqrt(LotArea)+YearBuilt+MasVnrArea+
+          BedroomAbvGr+Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF,data=df_num2)
+m7 = lm(log(SalePrice) ~ LotFrontage+sqrt(LotArea)+YearBuilt+MasVnrArea
+        +BedroomAbvGr+log(Fireplaces)+WoodDeckSF+OpenPorchSF,data=df_num2)
+m8 = lm(log(SalePrice)~LotFrontage+sqrt(LotArea)+YearBuilt+MasVnrArea+
+          BedroomAbvGr+Fireplaces+WoodDeckSF+OpenPorchSF, data=df_num2)
+m9 = lm(log(SalePrice)~LotFrontage+LotArea+YearBuilt+MasVnrArea+BedroomAbvGr+
+          log(Fireplaces)+WoodDeckSF+OpenPorchSF, data=df_num2)
+m10 = lm(log(SalePrice)~LotFrontage+LotArea+YearBuilt+MasVnrArea+BedroomAbvGr+
+           Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF, data=df_num2)
 BIC(m4,m5,m6,m7,m8,m9,m10)
 ```
 
-The best model is m6, that is only applying the sqrt transformations in LotArea and WoodDeckSF. For this model we have compared the distribution of residuals and saw that it was very similar to the original model
+The best model is m6, that is only applying sqrt() to LotArea and WoodDeckSF. For this model we have compared the distribution of residuals and realized that it is very similar to the original model.
 
 ```{r}
 par(mfrow=c(2,2))
@@ -227,9 +204,7 @@ plot(m11)
 ```
 
 # 10. Adding Factors to the numerical model
-As there were an important number of numeric variables we tried to add factor variables one by one. We started with the most correlated variable with the target and continued in decreasing order. To test if they increase the model forecasting capability we analysed the BIC and the distribution of residuals.
-
-For example, we added "ExterQual" and saw that it increased R^2 while reducing the BIC. Moreover, Anova and step methods suggested that adding the variable was relevant. Hence, we are following a heuristic approach.
+We followed an heuristic approach when we added factors to the model. As there was an important amount of numeric variables, we tried to add factor variables one by one. We started with the predictor most correlated with the target and continued in decreasing order. To test the improvement of the model's forecasting capability we analysed its BIC and R^2. Moreover, Anova() and step() methods suggest whether some predictors should be removed.
 
 ```{r}
 m12 = lm(log(SalePrice)~LotFrontage+sqrt(LotArea)+YearBuilt+MasVnrArea+BedroomAbvGr+Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF+OverallQual, data=df)
@@ -238,18 +213,18 @@ Anova(m12)
 step(m12, k = log(nrow(df)))
 ```
 
-Comparing the m11 and m12, there was a huge improvement in terms of BIC and Adjusted R-squared as we expected.
+Comparing m11 and m12, there was a huge improvement in terms of BIC and Adjusted R-squared, as we expected.
 
-The Anova test indicates that LotFrontage has lose significance once we add the categorical feature, and the step method suggest to remove it.
+The Anova test indicates that LotFrontage loses its significance once we add OverallQual, and the step method suggests to remove it.
 
 ```{r}
 m12.1 = lm(log(SalePrice)~sqrt(LotArea)+YearBuilt+MasVnrArea+BedroomAbvGr+Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF+OverallQual, data=df); summary(m12.1)
 BIC(m10,m12,m12.1)
 ```
 
-After removing the LotFrontage, although the R_sqrt didn't change, the BIC of m12.1 increased because we are using less variable (avoid ovefitting), which is good.
+After removing LotFrontage, although R^2 didn't change, BIC increased because we used less variables and avoided overfitting.
 
-Next, in the model m13, we have add the ExterQual to out model.
+Next, in m13, we have added ExterQual.
 
 ```{r}
 m13 = lm(log(SalePrice)~sqrt(LotArea)+YearBuilt+MasVnrArea+BedroomAbvGr+Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF+OverallQual+ExterQual, data=df); summary(m13)
@@ -258,7 +233,7 @@ Anova(m13)
 step(m13, k = log(nrow(df)))
 ```
 
-All the parameters shows that is correct to add the ExterQual, so we keep adding the BsmtQual feature.
+All parameters show that it is correct to add ExterQual, so we continue by adding BsmtQual to the model.
 
 ```{r}
 m14 = lm(log(SalePrice)~sqrt(LotArea)+YearBuilt+MasVnrArea+BedroomAbvGr+Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF+OverallQual+ExterQual+BsmtQual, data=df); summary(m14)
@@ -267,7 +242,7 @@ Anova(m14)
 step(m14, k = log(nrow(df)))
 ```
 
-After this, we add the KitcheQual. 
+After this, we add KitcheQual. 
 
 ```{r}
 m15 = lm(log(SalePrice)~sqrt(LotArea)+YearBuilt+MasVnrArea+BedroomAbvGr+Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF+OverallQual+ExterQual+BsmtQual+KitchenQual, data=df); summary(m15)
@@ -276,7 +251,7 @@ Anova(m15)
 step(m15, k = log(nrow(df)))
 ```
 
-The test shows that ExterQual, after adding the KitchenQual, has lose significance and is suggest to be removed. And comparing the model m15 and m15.1, indeed the AIC get better.
+The step method shows that ExterQual, after adding the KitchenQual, has lost significance and suggests to remove it. Indeed, BIC improves afterwards.
 
 ```{r}
 m15.1 = lm(log(SalePrice)~sqrt(LotArea)+YearBuilt+MasVnrArea+BedroomAbvGr+Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF+OverallQual+BsmtQual+KitchenQual, data=df); summary(m15.1)
@@ -285,29 +260,43 @@ Anova(m15.1)
 step(m15.1, k = log(nrow(df)))
 ```
 
-Adding the Neighbourhood and GarageFinish to the model.
+Adding Neighbourhood to the model.
 
 ```{r}
-m16 = lm(log(SalePrice)~sqrt(LotArea)+YearBuilt+MasVnrArea+BedroomAbvGr+Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF+OverallQual+BsmtQual+KitchenQual+Neighborhood+GarageFinish, data=df); summary(m16)
-BIC(m16,m15.1)
-Anova(m16)
-step(m16, k = log(nrow(df)))
+m16.1 = lm(log(SalePrice)~sqrt(LotArea)+YearBuilt+MasVnrArea+BedroomAbvGr+Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF+OverallQual+BsmtQual+KitchenQual+Neighborhood, data=df); summary(m16.1)
+BIC(m16.1,m15.1)
+Anova(m16.1)
+step(m16.1, k = log(nrow(df)))
 ```
 
-Al añadir el Neighbourhood y garage finish, el modelo se ha mejorado. Pero si seguimos añadiendo, con el FireplaceQu, este tiene un p-valor superior al 0,05. entonces pararemos aqui.
+Adding GarageFinish.
 
-      df       BIC
-m16   22 -929.0607
-m15.1 20 -795.5242
+```{r}
+m16.2 = lm(log(SalePrice)~sqrt(LotArea)+YearBuilt+MasVnrArea+BedroomAbvGr+Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF+OverallQual+BsmtQual+KitchenQual+Neighborhood+GarageFinish, data=df); summary(m16.2)
+BIC(m16.2,m16.1)
+Anova(m16.2)
+step(m16.2, k = log(nrow(df)))
+```
+
+Adding FireplaceQu.
+
+```{r}
+m16.3 = lm(log(SalePrice)~sqrt(LotArea)+YearBuilt+MasVnrArea+BedroomAbvGr+Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF+OverallQual+BsmtQual+KitchenQual+Neighborhood+GarageFinish+FireplaceQu, data=df); summary(m16.3)
+BIC(m16.3,m16.2,m16.1)
+Anova(m16.3)
+step(m16.3, k = log(nrow(df)))
+```
+
+In m16.3, FireplaceQu's coefficient has a p-value larger than 0.05 and, indeed, step() suggests to remove it from the model. Hence, we stop adding new categorical variables.
 
 
-# 11. Checking the possible Interactions
-1. YearBuilt and OverallQual intuitively should interact because of inflation. Indeed, all variables could interact with YearBuilt, but OverallQual summarizes them all.
+# 11. Checking possible Interactions
+YearBuilt and OverallQual intuitively should interact because of inflation. Indeed, all variables could interact with YearBuilt, but OverallQual summarizes them.
 
 ```{r}
 m17 = lm(log(SalePrice)~sqrt(LotArea)+MasVnrArea+
-          BedroomAbvGr+Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF+YearBuilt*OverallQual+BsmtQual+KitchenQual, data=df); summary(m17)
-BIC(m17,m16,m15.1,m15,m14,m13,m12.1,m12,m11)
+          BedroomAbvGr+Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF+YearBuilt*OverallQual+BsmtQual+KitchenQual+Neighborhood+GarageFinish, data=df); summary(m17)
+BIC(m17,m16.2)
 Anova(m17)
 step(m17, k = log(nrow(df)))
 ```
@@ -316,22 +305,28 @@ step(m17, k = log(nrow(df)))
 
 ```{r}
 m18 = lm(log(SalePrice)~MasVnrArea+
-          BedroomAbvGr+Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF+YearBuilt*OverallQual+sqrt(LotArea)*YearBuilt+OverallQual+BsmtQual+KitchenQual, data=df); summary(m18)
-BIC(m18,m17,m16,m15.1,m15,m14,m13,m12.1,m12,m11)
+          BedroomAbvGr+Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF+YearBuilt*OverallQual+sqrt(LotArea)*YearBuilt+OverallQual+BsmtQual+KitchenQual+Neighborhood+GarageFinish, data=df); summary(m18)
+BIC(m18,m17,m16.2)
 Anova(m18)
 step(m18, k = log(nrow(df)))
 ```
 
-Any of these interactions have improved much the model, so we won't keep any. No other interaction would make sense, so we won't try anymore.
+Any of these interactions have improved much the model, so we won't keep them. No other interaction would make sense, so we will not try anymore.
+
+Our final model is m16.2. That is, log(SalePrice) ~ sqrt(LotArea)+YearBuilt+MasVnrArea+BedroomAbvGr+Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF+OverallQual+BsmtQual+KitchenQual+Neighborhood+GarageFinish. Its adjusted R^2 is 0.8195 and its BIC is about -972.
 
 ```{r}
-predicted_values = predict.lm(m15.1, df_test, se.fit=TRUE, interval="prediction", level=0.95)
+summary(m16.2)
+BIC(m16.2)
+```
 
+
+# 12. Model validation
+We predict the SalePrice on the test dataset and compare its distribution with the original one in train.
+
+```{r}
+predicted_values = predict.lm(m16.2, df_test, se.fit=TRUE, interval="prediction", level=0.95)
 test_price = exp(predicted_values$fit)
-
-hist(test_price[,1])
-hist(test_price[,2])
-hist(test_price[,3])
 ```
 
 ```{r}
@@ -347,6 +342,8 @@ lines(density(df$SalePrice), col="blue")
 legend("topright",fill = c("red", "blue"), c("Predicted on Test","Real on Train"))
 ```
 
+As can be seen in the previous plots, the real and the predicted distributions of SalePrice are similar, but not identical. This was exactly our goal, since both test and train come from the same population and we wanted to avoid overfitting.
+
 ```{r}
 marginalModelPlots(m15.1, id=list(n=0))
 ```
@@ -355,30 +352,30 @@ marginalModelPlots(m15.1, id=list(n=0))
 residualPlots( m15.1, id=list(n=0))
 ```
 
-In general, using the marginal model plots, we can see that the residuals distribution for most variables are close to 0. However, sqrt(LotArea) seems to have bad residuals in marginalModelPlots(), but not in residualPlots. This could simply mean the first plot doesn't properly represent the residuals of this variable. As for categorical variables, all errors are close to 0, except for the level "VBad" of OverallQual, which is due to the fact that it contains few individuals.
+In general, using the marginal model plots, we can see that the residuals distribution for most variables are close to 0. However, sqrt(LotArea) seems to have bad residuals in marginalModelPlots(), but not in residualPlots(). This could simply mean the first method doesn't properly represent the residuals of this variable. As for categorical variables, all errors are close to 0, except for the level "VBad" of OverallQual, which is due to the fact that it contains few individuals.
 
 ```{r}
 ks_test_result <- ks.test(test_price[,1], df$SalePrice)
 ks_test_result
 ```
 
-The Kolmogorov-Smirnov test shows that predicted and real distributions of SalePrice should be accepted to be different.
+The Kolmogorov-Smirnov test shows that predicted and real distributions of SalePrice should be assumed to be different.
 
 Finally, we will check the normality of the residuals.
+
 ```{r}
+par(mfrow=c(2,2))
 plot(m15.1)
 shapiro.test(m15.1$residuals)
 ```
-Residuals don't follow a normal distribution, so the model won't give very accurate results. Nevertheless, we are happy with our resulting model, so we will not do any more changes.
 
-# 12. Model selection
-From the resulting model, we tried to reduce the number of variables using "step" method with BIC (Bayesian information criteria) to consider a greater effect of the complexity on the model considering that there are a lot of variables. Additionally we performed an "Anova" method, that compares a base model with a nested model of one less variable.
+Residuals don't follow a normal distribution, so the model won't give very accurate results. Nevertheless, we are happy with our results, so we will not apply any more changes.
 
-Both methods suggested that the best possible model is obtained without removing any variable. For example, in AIC, removing "BedroomAbvGr" makes a simpler model but it is less predictive. As a consequence BIC is increased from 31053 to 31056. In "Anova" the p-value for this value is not significant and, as a consequence, we cannot remove this variable as the resulting model is not equivalent.
+# 13. Model interpretation
 
+First, let us remember the model we have obtained:  log(SalePrice) ~ sqrt(LotArea)+YearBuilt+MasVnrArea+BedroomAbvGr+Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF+OverallQual+BsmtQual+KitchenQual+Neighborhood+GarageFinish.
 
-```{r}
-# we use k = log(n) to use BIC instead of AIC 
-step(m2, k = log(nrow(df))) 
-Anova(m0)
-```
+We are modeling the logarithm of SalePrice. That is, an increase of one unit in any of the predictors (except for LotArea and WoodDeckSF) causes the price of the sale to be multiplied by the number e. All the predictors we are using make sense intuitively: the area of the lot, the masonry veneer, the wood deck and the open porch, the amount of bedrooms above ground and fireplaces, the overall quality but also that of the basement and the kitchen, the interior finish of the garage, the dwelling neighborhood's wealth and the year it was built. 
+The area of the lot and the wood deck appear with an exponent of 1/2 in the model, which means that the slope of their contribution to log(SalePrice) is lower than that of the other terms for values larger than 1/4.
+
+In total, our model predictors are composed of 7 numerical features and 5 categorical variables, with three transformations and no interactions.

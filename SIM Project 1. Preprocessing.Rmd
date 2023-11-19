@@ -1,19 +1,21 @@
 ---
 title: "SIM Project 1. Preprocessing"
-author: "Adrià Casanova Víctor Garcia Zhengyong Ji"
+author: "Adrià Casanova, Víctor Garcia, Zhengyong Ji"
 date: "November, 19th 2023"
 output:
-  word_document:
-    toc: yes
-    toc_depth: '3'
   pdf_document:
     toc: yes
     toc_depth: 3
-    number_sections: yes
+    number_sections: no
+  word_document:
+    toc: yes
+    toc_depth: '3'
 editor_options:
   chunk_output_type: console
 ---
-In this work, we will study the data set called “Ames Housing dataset”, collected by Dean De Cock for the purpose to analyze the correlation about house prices and different features that describe the house condition, and then to build a regression model that will allows us to predict the sale price.
+In this work, we will study the data set called “Ames Housing dataset”, collected by Dean De Cock for the purpose to analyze the correlation about house prices and different features that describe the house condition, and then to build a regression model that will allow us to predict the sale price.
+
+All members have contributed equally to all parts of the project.
 
 The data set has two parts, the training part and testing part, with 1460 and 1459 observations each other, and 81 variables (including the id variable).
 
@@ -31,6 +33,8 @@ library(chemometrics)
 library(DataExplorer)
 library(corrplot)
 library(DataExplorer)
+library(MASS)
+library(effects)
 
 train = read.csv("train.csv")
 test = read.csv("test.csv")
