@@ -3,13 +3,13 @@ title: "SIM Project 1. Preprocessing"
 author: "Adrià Casanova, Víctor Garcia, Zhengyong Ji"
 date: "November, 19th 2023"
 output:
+  word_document:
+    toc: yes
+    toc_depth: '3'
   pdf_document:
     toc: yes
     toc_depth: 3
     number_sections: no
-  word_document:
-    toc: yes
-    toc_depth: '3'
 editor_options:
   chunk_output_type: console
 ---
@@ -44,8 +44,6 @@ test = read.csv("test.csv")
 #create_report(test, output_format = "pdf_document", output_file = "test.pdf")
 ```
 
-**Data preparation and data cleaning**
-
 # 0. Data preparation and data cleaning
 After loading the datasets we defined the types of the variables (categorical, numerical or dates). Some of them required further transformation, based on some assumptions, that are detailed below. 
 
@@ -57,9 +55,9 @@ Numerical_val = c("LotFrontage","LotArea","MasVnrArea","BsmtFinSF1","BsmtFinSF2"
 Date_val = c("YearBuilt","YearRemodAdd","GarageYrBlt","MoSold","YrSold")
 
 # Identify variables susceptible to be transformed into categorical
-sapply(select(train, Numerical_val), table)
-sapply(select(train, Categorical_val), table)
-sapply(select(train, Date_val), table)
+sapply(dplyr::select(train, Numerical_val), table)
+sapply(dplyr::select(train, Categorical_val), table)
+sapply(dplyr::select(train, Date_val), table)
 ```
 
 1) Non applicable NaN's: There were 3 variables with an important number of missing (aprox 90%) because the measure was not applicable. This happened, firstly, in PoolArea because the pool area can not be computed for houses without a pool. It was also the case of LowQualFinSF because it is only refered to surfaces finished with low quality, and with BsmtFinSF2, that is only applicable for basement of type 2.
@@ -376,8 +374,8 @@ Categorical_val = c("MSSubClass","MSZoning","Street","Alley","LotShape","LandCon
 # The numerical variables, except the target are
 Numerical_val = c("LotFrontage","LotArea","YearBuilt","YearRemodAdd","MasVnrArea","BsmtFinSF1","BsmtUnfSF","TotalBsmtSF","X1stFlrSF","X2ndFlrSF","GrLivArea","BsmtFullBath","FullBath","HalfBath","BedroomAbvGr","TotRmsAbvGrd","Fireplaces","GarageYrBlt","GarageCars","GarageArea","WoodDeckSF","OpenPorchSF","YrSold")
 
-train_num = select(train, Numerical_val)
-train_cat = select(train, Categorical_val)
+train_num = dplyr::select(train, Numerical_val)
+train_cat = dplyr::select(train, Categorical_val)
 ```
 
 # 1. Univariate outliers detection
@@ -576,7 +574,7 @@ res.con$quali[1:10,]
 
 Additionally, we analysed the correlation of numerical variables with the target. According to the profile all numerical variables have a R^2 of p < 0.05 except for "YrSold". Furthermore, we have used cor.test() to test against H0="correlation between "YrSold" and "SalePrice" is 0" and we have failed to reject H0. Therefore, "YrSold" cannot be used to model "SalePrice".
 
-```{r}
+```{r, results = "hide"}
 res.con$quanti
 res.con$category
 
@@ -640,3 +638,4 @@ test_impute$YrSold <- NULL
 
 write.csv(test_impute, file='test_impute.csv', row.names = FALSE)
 ```
+

@@ -3,13 +3,13 @@ title: "SIM Project 2. Model fitting"
 author: "Adrià Casanova Víctor Garcia Zhengyong Ji"
 date: "November, 19th 2023"
 output:
+  word_document:
+    toc: yes
+    toc_depth: '3'
   pdf_document:
     toc: yes
     toc_depth: 3
     number_sections: no
-  word_document:
-    toc: yes
-    toc_depth: '3'
 editor_options:
   chunk_output_type: console
 ---
@@ -82,7 +82,7 @@ corr_mat <- cor(df_num1)
 corrplot(corr_mat, method = "number")
 ```
 
-Feature "YearBuilt" and "YearRemodAdd" are highly correlated, and "YearBuilt" is more correlated to our target SalePrice. Hence, we remove YearRemodAdd in the next model.
+Feature "YearBuilt" and "YearRemodAdd" are highly correlated between them, and "YearBuilt" is more correlated to our target SalePrice. Hence, we remove YearRemodAdd in the next model.
 
 ```{r}
 # Building the model without "YearRemodAdd"
@@ -94,7 +94,7 @@ summary(m2)
 
 Now, the most correlated variables in our model have at most a coefficient of correlation of 0.315, which in the context of real estate it is weak. We have obtained this information from https://37parallel.com/real-estate-correlation/.
 
-```{r}
+```{r, results = "hide"}
 Anova(m2)
 ```
 
@@ -125,6 +125,8 @@ df <- df[-influent,]
 df_num <- df[, which(sapply(df, is.numeric))]
 df_num2 <- df_num[, id_num_star2]
 m2 = lm(SalePrice ~., data=df_num2)
+
+influencePlot(m2)
 ```
 
 Firstly, we check if there is any needed transformation with boxcox().
@@ -245,7 +247,8 @@ All parameters show that it is correct to add ExterQual, so we continue by addin
 
 ```{r, results = "hide"}
 m14 = lm(log(SalePrice)~sqrt(LotArea)+YearBuilt+MasVnrArea+BedroomAbvGr+
-           Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF+OverallQual+ExterQual+BsmtQual, data=df)
+           Fireplaces+sqrt(WoodDeckSF)+OpenPorchSF+OverallQual+ExterQual+
+           BsmtQual, data=df)
 summary(m14)
 BIC(m14,m13)
 Anova(m14)
