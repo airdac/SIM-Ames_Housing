@@ -383,7 +383,8 @@ train_cat = select(train, Categorical_val)
 # 1. Univariate outliers detection
 First we analysed the target variable, where we found 12 severe outliers as 
 this variable. Because the target variable can not be imputed we decided to 
-remove those observations. You can see all the outliers in the following plot
+keep those observacions and, in the remove them in the model creation in case
+they are influents points. You can see all the outliers in the following plot
 
 ```{r}
 sevout <- quantile(train$SalePrice,0.75,na.rm=TRUE)+3*(quantile(train$SalePrice,
@@ -426,9 +427,6 @@ for (var in id_num_val) {
   Boxplot(test[,var], ylab = names(test)[var], main = "Test")
 }
 par(mfrow=c(1,1))
-
-# Remove the outliers for the target variable
-train = train[-severe_outliers(train$SalePrice),]
 ```
 
 # 2. PCA imputation
