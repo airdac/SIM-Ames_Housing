@@ -482,7 +482,6 @@ b
 
 
 # 3. Multivariate outliers detection
-
 After the imputation, we decided to perform a Moutlier analysis to detect multivariate outliers. As using all numerical variables returns a singular matrix we decided to make the analysis with only the following variables: "LotFrontage", "LotArea", "YearRemodAdd", "BsmtFinSF1", "BsmtUnfSF", "GrLivArea", "Fireplaces", "GarageYrBlt", "GarageArea".
 
 The analysis showed that there are 112 multivariate outliers in the train dataset and 115 in the test datset.
@@ -558,8 +557,6 @@ linear models requires normality.
 ks.test(train$LotArea, y = 'pnorm')
 shapiro.test(train$LotArea)
 ```
-
-**1. Feature selection**
 
 # 5. Profiling and selection of categorical features
 Once we have the data clean and preprocesed, we have selected the 10 most relevant
